@@ -1,2 +1,2 @@
-# greenstand_duplicate_detection
-Detect duplicate images in a large dataset
+# Duplicate Image Detection 
+Detect duplicate images in a large dataset of planted trees
