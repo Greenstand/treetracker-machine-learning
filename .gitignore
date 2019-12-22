@@ -1,1 +1,5 @@
-AppEnv/*
+*_db/*
+*AppEnv/*
+*.csv*
+_pycache_
+*virtual_env/*
