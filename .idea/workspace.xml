@@ -2,9 +2,16 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="083a212d-600a-4b52-91a1-1c304e9b818a" name="Default Changelist" comment="">
+<<<<<<< HEAD
       <change beforePath="$PROJECT_DIR$/.idea/greenstand.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/greenstand.iml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/process_playground.py" beforeDir="false" afterPath="$PROJECT_DIR$/process_playground.py" afterDir="false" />
+=======
+      <change afterPath="$PROJECT_DIR$/hash.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/process_playground.py" beforeDir="false" afterPath="$PROJECT_DIR$/process_playground.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
+>>>>>>> 7dd9c31eba1184716b00d22ab459cfc9f0f8e8d2
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -13,12 +20,17 @@
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
   <component name="CoverageDataManager">
+<<<<<<< HEAD
     <SUITE FILE_PATH="coverage/greenstand$process_playground.coverage" NAME="process_playground Coverage Results" MODIFIED="1576880421150" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+=======
+    <SUITE FILE_PATH="coverage/greenstand$process_playground.coverage" NAME="process_playground Coverage Results" MODIFIED="1574802536012" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+>>>>>>> 7dd9c31eba1184716b00d22ab459cfc9f0f8e8d2
   </component>
   <component name="FUSProjectUsageTrigger">
     <session id="1518113125">
       <usages-collector id="statistics.lifecycle.project">
         <counts>
+<<<<<<< HEAD
           <entry key="project.closed" value="8" />
           <entry key="project.open.time.10" value="1" />
           <entry key="project.open.time.15" value="3" />
@@ -27,30 +39,53 @@
           <entry key="project.open.time.22" value="1" />
           <entry key="project.open.time.3" value="1" />
           <entry key="project.opened" value="8" />
+=======
+          <entry key="project.closed" value="1" />
+          <entry key="project.open.time.10" value="1" />
+          <entry key="project.open.time.20" value="1" />
+          <entry key="project.opened" value="2" />
+>>>>>>> 7dd9c31eba1184716b00d22ab459cfc9f0f8e8d2
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.extensions.open">
         <counts>
+<<<<<<< HEAD
           <entry key="csv" value="2" />
           <entry key="py" value="4" />
+=======
+          <entry key="py" value="3" />
+>>>>>>> 7dd9c31eba1184716b00d22ab459cfc9f0f8e8d2
           <entry key="txt" value="2" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.types.open">
         <counts>
+<<<<<<< HEAD
           <entry key="CSV" value="2" />
           <entry key="PLAIN_TEXT" value="2" />
           <entry key="Python" value="4" />
+=======
+          <entry key="PLAIN_TEXT" value="2" />
+          <entry key="Python" value="3" />
+>>>>>>> 7dd9c31eba1184716b00d22ab459cfc9f0f8e8d2
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.extensions.edit">
         <counts>
+<<<<<<< HEAD
           <entry key="py" value="3376" />
+=======
+          <entry key="py" value="2339" />
+>>>>>>> 7dd9c31eba1184716b00d22ab459cfc9f0f8e8d2
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.types.edit">
         <counts>
+<<<<<<< HEAD
           <entry key="Python" value="3376" />
+=======
+          <entry key="Python" value="2339" />
+>>>>>>> 7dd9c31eba1184716b00d22ab459cfc9f0f8e8d2
         </counts>
       </usages-collector>
     </session>
@@ -60,20 +95,36 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/data_management.py">
           <provider selected="true" editor-type-id="text-editor">
+<<<<<<< HEAD
             <state relative-caret-position="-902">
               <caret line="11" column="42" lean-forward="true" selection-start-line="11" selection-start-column="42" selection-end-line="11" selection-end-column="42" />
               <folding>
                 <element signature="e#0#31#0" expanded="true" />
               </folding>
+=======
+            <state>
+              <caret column="20" selection-start-column="20" selection-end-column="20" />
+>>>>>>> 7dd9c31eba1184716b00d22ab459cfc9f0f8e8d2
             </state>
           </provider>
         </entry>
       </file>
       <file pinned="false" current-in-tab="false">
+<<<<<<< HEAD
         <entry file="file://$PROJECT_DIR$/nov11data.csv">
           <provider selected="true" editor-type-id="LargeFileEditor">
             <state relative-caret-position="2337">
               <caret line="4807" column="3" selection-start-line="4807" selection-start-column="3" selection-end-line="4807" selection-end-column="3" />
+=======
+        <entry file="file://$PROJECT_DIR$/hash.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="464">
+              <caret line="30" column="40" selection-start-line="30" selection-start-column="40" selection-end-line="30" selection-end-column="40" />
+              <folding>
+                <element signature="e#0#10#0" expanded="true" />
+                <marker date="1574797174535" expanded="true" signature="52:57" ph="..." />
+              </folding>
+>>>>>>> 7dd9c31eba1184716b00d22ab459cfc9f0f8e8d2
             </state>
           </provider>
         </entry>
@@ -81,8 +132,16 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/process_playground.py">
           <provider selected="true" editor-type-id="text-editor">
+<<<<<<< HEAD
             <state relative-caret-position="154">
               <caret line="82" column="8" selection-start-line="82" selection-start-column="8" selection-end-line="82" selection-end-column="8" />
+=======
+            <state relative-caret-position="236">
+              <caret line="79" column="56" selection-start-line="79" selection-start-column="56" selection-end-line="79" selection-end-column="56" />
+              <folding>
+                <element signature="e#0#45#0" expanded="true" />
+              </folding>
+>>>>>>> 7dd9c31eba1184716b00d22ab459cfc9f0f8e8d2
             </state>
           </provider>
         </entry>
@@ -99,9 +158,12 @@
   <component name="FindInProjectRecents">
     <findStrings>
       <find>tensorflow</find>
+<<<<<<< HEAD
       <find>9347</find>
       <find>93481</find>
       <find>93457</find>
+=======
+>>>>>>> 7dd9c31eba1184716b00d22ab459cfc9f0f8e8d2
     </findStrings>
   </component>
   <component name="Git.Settings">
@@ -127,16 +189,27 @@
       <path value="$PROJECT_DIR$/AppEnv/Lib/site-packages/matplotlib/backends/web_backend/jquery-ui-1.12.1/package.json" />
     </packageJsonPaths>
   </component>
+<<<<<<< HEAD
   <component name="ProjectFrameBounds" extendedState="6">
     <option name="x" value="950" />
     <option name="width" value="980" />
     <option name="height" value="1040" />
+=======
+  <component name="ProjectFrameBounds">
+    <option name="x" value="951" />
+    <option name="width" value="978" />
+    <option name="height" value="1039" />
+>>>>>>> 7dd9c31eba1184716b00d22ab459cfc9f0f8e8d2
   </component>
   <component name="ProjectView">
     <navigator proportions="" version="1">
       <foldersAlwaysOnTop value="true" />
     </navigator>
     <panes>
+<<<<<<< HEAD
+=======
+      <pane id="Scope" />
+>>>>>>> 7dd9c31eba1184716b00d22ab459cfc9f0f8e8d2
       <pane id="ProjectPane">
         <subPane>
           <expand>
@@ -148,12 +221,18 @@
           <select />
         </subPane>
       </pane>
+<<<<<<< HEAD
       <pane id="Scope" />
+=======
+>>>>>>> 7dd9c31eba1184716b00d22ab459cfc9f0f8e8d2
     </panes>
   </component>
   <component name="PropertiesComponent">
     <property name="WebServerToolWindowFactoryState" value="false" />
+<<<<<<< HEAD
     <property name="last_opened_file_path" value="$PROJECT_DIR$/process_playground.py" />
+=======
+>>>>>>> 7dd9c31eba1184716b00d22ab459cfc9f0f8e8d2
     <property name="nodejs_interpreter_path.stuck_in_default_project" value="undefined stuck path" />
     <property name="nodejs_npm_path_reset_for_default_project" value="true" />
     <property name="settings.editor.selected.configurable" value="com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable" />
@@ -213,14 +292,25 @@
     <servers />
   </component>
   <component name="ToolWindowManager">
+<<<<<<< HEAD
     <frame x="-7" y="-7" width="1550" height="838" extended-state="6" />
     <layout>
       <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.08993289" />
+=======
+    <frame x="761" y="0" width="782" height="831" extended-state="0" />
+    <editor active="true" />
+    <layout>
+      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.0013850415" />
+>>>>>>> 7dd9c31eba1184716b00d22ab459cfc9f0f8e8d2
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
       <window_info id="Favorites" order="2" side_tool="true" />
       <window_info anchor="bottom" id="Message" order="0" />
       <window_info anchor="bottom" id="Find" order="1" />
+<<<<<<< HEAD
       <window_info anchor="bottom" id="Run" order="2" weight="0.3531915" />
+=======
+      <window_info anchor="bottom" id="Run" order="2" visible="true" weight="0.3323782" />
+>>>>>>> 7dd9c31eba1184716b00d22ab459cfc9f0f8e8d2
       <window_info anchor="bottom" id="Debug" order="3" weight="0.4" />
       <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
       <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
@@ -230,11 +320,19 @@
       <window_info anchor="bottom" id="Database Changes" order="9" show_stripe_button="false" />
       <window_info anchor="bottom" id="Event Log" order="10" side_tool="true" />
       <window_info anchor="bottom" id="Terminal" order="11" />
+<<<<<<< HEAD
       <window_info anchor="bottom" id="Python Console" order="12" weight="0.32907802" />
       <window_info anchor="right" id="Commander" internal_type="SLIDING" order="0" type="SLIDING" weight="0.4" />
       <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
       <window_info anchor="right" content_ui="combo" id="Hierarchy" order="2" weight="0.25" />
       <window_info active="true" anchor="right" id="SciView" order="3" visible="true" weight="0.447651" />
+=======
+      <window_info anchor="bottom" id="Python Console" order="12" />
+      <window_info anchor="right" id="Commander" internal_type="SLIDING" order="0" type="SLIDING" weight="0.4" />
+      <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
+      <window_info anchor="right" content_ui="combo" id="Hierarchy" order="2" weight="0.25" />
+      <window_info active="true" anchor="right" id="SciView" order="3" visible="true" weight="0.17036012" />
+>>>>>>> 7dd9c31eba1184716b00d22ab459cfc9f0f8e8d2
       <window_info anchor="right" id="Database" order="4" />
     </layout>
   </component>
@@ -252,6 +350,7 @@
         </state>
       </provider>
     </entry>
+<<<<<<< HEAD
     <entry file="file://$PROJECT_DIR$/hash.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="240">
@@ -276,14 +375,38 @@
           <caret line="11" column="42" lean-forward="true" selection-start-line="11" selection-start-column="42" selection-end-line="11" selection-end-column="42" />
           <folding>
             <element signature="e#0#31#0" expanded="true" />
+=======
+    <entry file="file://$PROJECT_DIR$/data_management.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state>
+          <caret column="20" selection-start-column="20" selection-end-column="20" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/hash.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="464">
+          <caret line="30" column="40" selection-start-line="30" selection-start-column="40" selection-end-line="30" selection-end-column="40" />
+          <folding>
+            <element signature="e#0#10#0" expanded="true" />
+            <marker date="1574797174535" expanded="true" signature="52:57" ph="..." />
+>>>>>>> 7dd9c31eba1184716b00d22ab459cfc9f0f8e8d2
           </folding>
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/process_playground.py">
       <provider selected="true" editor-type-id="text-editor">
+<<<<<<< HEAD
         <state relative-caret-position="154">
           <caret line="82" column="8" selection-start-line="82" selection-start-column="8" selection-end-line="82" selection-end-column="8" />
+=======
+        <state relative-caret-position="236">
+          <caret line="79" column="56" selection-start-line="79" selection-start-column="56" selection-end-line="79" selection-end-column="56" />
+          <folding>
+            <element signature="e#0#45#0" expanded="true" />
+          </folding>
+>>>>>>> 7dd9c31eba1184716b00d22ab459cfc9f0f8e8d2
         </state>
       </provider>
     </entry>

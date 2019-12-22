@@ -16,7 +16,12 @@ key2 = 93481
 key3 = None
 a = data.read_image_from_db('duplicates_db/', key=key1)
 b = data.read_image_from_db('duplicates_db/', key=key2)
+<<<<<<< HEAD
 # c = data.read_image_from_db('duplicates_db/', key=key3)
+=======
+plt.imshow(b)
+plt.show()
+>>>>>>> 7dd9c31eba1184716b00d22ab459cfc9f0f8e8d2
 
 a = cv2.resize(a,(50,50))
 b = cv2.resize(b, (50,50))
@@ -60,6 +65,7 @@ def difference_hash(img, hash_size):
     '''
     Credit to https://www.pyimagesearch.com/2017/11/27/image-hashing-opencv-python/
     for implementation tutorial.
+<<<<<<< HEAD
 
     :param img: (np.ndarray) the RGB image to find a difference hash function of
     :param hash_size: (int) the number of bits in the hash (ex. setting to 8 yields 2**8=64 bit address)
@@ -73,12 +79,28 @@ def difference_hash(img, hash_size):
 
 def phash(img, resize_dim):
 
+=======
+
+    :param img: (np.ndarray) the RGB image to find a difference hash function of
+    :param hash_size: (int) the number of bits in the hash (ex. setting to 8 yields 2**8=64 bit address)
+    :return: (int) 2 ** hash_size bit image hash function
+    '''
+    resized = cv2.resize(cv2.cvtColor(img, cv2.COLOR_RGB2GRAY), (hash_size + 1, hash_size))
+    x_diff = resized[:, 1:] > resized[:, :-1]
+    # return sum of 2-power
+    return np.sum(np.exp2(np.flatnonzero(x_diff)))
+
+
+def phash(img, resize_dim):
+
+>>>>>>> 7dd9c31eba1184716b00d22ab459cfc9f0f8e8d2
 
     img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
     img = cv2.resize(img, resize_dim)
     # TODO: Finish method
     return
 
+<<<<<<< HEAD
 a_fake = a.copy()
 a_fake[0,:] = 0
 print (a[0,0])
@@ -90,6 +112,14 @@ print (a_hash)
 print (a_fake_hash)
 print (b_hash)
 
+=======
+
+a_hash = imagehash.dhash(Image.fromarray(a), hash_size=9)
+b_hash = imagehash.dhash(Image.fromarray(b), hash_size=9)
+print (a_hash)
+
+print (a_hash - b_hash)
+>>>>>>> 7dd9c31eba1184716b00d22ab459cfc9f0f8e8d2
 # print (np.count_nonzero((a_hash)!= (b_hash)))
 #
 # print (np.count_nonzero([0,0,1] != [0,0,0]))
