@@ -9,7 +9,7 @@ import pickle
 import os
 
 """
-Exploratory file for image loading and duplicate detection
+File for data database creation for quick image read/write while prototyping
 """
 
 
@@ -70,31 +70,33 @@ class GreenstandDataset():
                         txn.put(str(self.data.loc[j + begin_idx]["id"]).encode("ascii"),pickle.dumps(self.render_image(self.data.loc[j]["image_url"])))
             env.close()
         else: # write a database of the given ids
+            print ("Writing ids: ")
+            print (ids)
             with env.begin(write=True) as txn:
                 for id_num in ids:
                     samp = self.data[self.data["id"] == id_num]
-                    if samp is None:
+                    if samp is None or samp.isnull().values.all():
                         print ("ID %d not found " %id_num)
                     else:
                         print (samp["image_url"].values[0])
+                        print (self.render_image(samp["image_url"].values[0]).shape)
                         txn.put(str(id_num).encode("ascii"), pickle.dumps(self.render_image(samp["image_url"].values[0])))
             env.close()
         print ("Database written to %s"%lmdb_dir)
 
 
     def read_image_from_db(self,lmdb_dir,key):
+        assert os.path.exists(lmdb_dir)
         env = lmdb.open(str(lmdb_dir),readonly=True)
         with env.begin() as txn:
+            # print (txn.get(str(key).encode("ascii")))
             data = pickle.loads(txn.get(str(key).encode("ascii")))
         return data
 
 if __name__ == "__main__":
     data = GreenstandDataset('nov11data.csv')
     data.populate() # necessary if writing to database
-    lmdb_path = os.path.join(os.getcwd(),"duplicates_db")
-    data.write_database(lmdb_path,max_entries=25, ids=list(range(93457, 93482)))
-
-    a = data.read_image_from_db(lmdb_path, data.data.iloc[0][0])
-    b = data.read_image_from_db(lmdb_path, 93457)
-
-
+    lmdb_path = os.path.join(os.getcwd(),"random_zeroone_percent_db")
+    onepercent = data.data["id"].sample(n=20).values
+    data.write_database(lmdb_path,max_entries=25, ids=onepercent)
+    np.savetxt("onepercentids.txt", onepercent)
