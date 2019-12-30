@@ -6,10 +6,9 @@ import cv2
 import numpy as np
 import imagehash
 import os
-from hash import ImageHasher, hamming_distance
+from hash import ImageHasher, hamming_distance, preprocess
 
 
-print ("OpenCV version: ", cv2.__version__)
 # to 93457 to 93481 duplicates
 data = GreenstandDataset('nov11data.csv')
 key1 = 93457
@@ -23,42 +22,70 @@ b = data.read_image_from_db('duplicates_db/', key=key2)
 c = data.read_image_from_db(os.path.join(os.getcwd(), 'random_zeroone_percent_db/'), key=key3)
 d = data.read_image_from_db('random_zeroone_percent_db/', key=key4)
 images = [a,b,c,d]
-
+images = preprocess(images)
 size = 120
-images = [cv2.resize(img,(size,size)) for img in images]
+images = [cv2.resize(img,(size,size), interpolation=cv2.INTER_AREA) for img in images]
 
 # if doing hash comparison is slow consider switching to greyscale and
 # making images smaller
 fig, axarr = plt.subplots(2,2, figsize=(8,8))
 plt.suptitle("Sample images A=%d, B=%d, C=%d, D=%d"%(key1,key2,key3,key4))
-axarr[0,0].imshow(a)
+axarr[0,0].imshow(images[0], cmap='gray')
 axarr[0,0].set_title("A")
-axarr[1,0].imshow(b)
+axarr[1,0].imshow(images[1], cmap='gray')
 axarr[1,0].set_title("B")
-axarr[0,1].imshow(c)
+axarr[0,1].imshow(images[2], cmap='gray')
 axarr[0,1].set_title("C")
-axarr[1,1].imshow(d)
+axarr[1,1].imshow(images[3], cmap='gray')
 axarr[1,1].set_title("D")
+plt.savefig("playground_images/bw_histo_image_samples.jpg")
 plt.show()
+plt.figure()
 
-
-
-
-
-hsize = 9
+hsize = 8
 my_hasher = ImageHasher(hsize)
-hashes = [imagehash.dhash(Image.fromarray(img), hash_size=hsize) for img in images]
-my_hashes = [my_hasher.difference_hash(img) for img in images]
+# difference hashes
+imagehash_diff_hashes = [imagehash.dhash(Image.fromarray(img), hash_size=hsize) for img in images]
+imagehash_avg_hashes = [imagehash.average_hash(Image.fromarray(img), hash_size=hsize) for img in images]
+imagehash_dct_hashes = [imagehash.phash(Image.fromarray(img), hash_size=8, highfreq_factor=4) for img in images]
+diff_hashes = [my_hasher.difference_hash(img) for img in images]
+avg_hashes = [my_hasher.average_hash(img) for img in images]
+dct_hashes = [my_hasher.dct_hash(img) for img in images]
 
-print ("IMAGEHASH")
-for h in hashes:
-    print ("Open Source Hamming")
-    print (hashes[0] - h) # difference between image A and this image
-    # print (int(str(hashes[0]),16))
-    # print (int(str(h),16))
-    print ("Custom Hamming")
-    print (np.binary_repr(np.bitwise_xor(int(str(hashes[0]),16), int(str(h),16))).count("1"))
-    print (hamming_distance(int(str(h),16), int(str(hashes[0]),16)))
+print ("Comparison to ImageHash library")
+for i in range(len(images)):
+    print (i)
+    print ("-" * 50)
+    print ("AVERAGES")
+    print (str(imagehash_avg_hashes[i]) == hex(avg_hashes[i]))
+    print (str(imagehash_avg_hashes[i]))
+    print (hex(avg_hashes[i]))
+    print ("DIFF")
+    print (str(imagehash_diff_hashes[i]) == hex(diff_hashes[i]))
+    print (str(imagehash_diff_hashes[i]))
+    print (hex(diff_hashes[i]))
+    print ("DCT")
+    print (str(imagehash_dct_hashes[i]) == hex(dct_hashes[i]))
+    print (str(imagehash_dct_hashes[i]))
+    print (hex(dct_hashes[i]))
+
+
+print ("DIFFERENCE HASHES")
+for j in range(len(diff_hashes)):
+    print (hamming_distance(diff_hashes[0], diff_hashes[j]))
+    print (imagehash_diff_hashes[0] - imagehash_diff_hashes[j])
+print ("AVERAGE  HASHES")
+for j in range(len(avg_hashes)):
+    print (hamming_distance(avg_hashes[0], avg_hashes[j]))
+    print (imagehash_avg_hashes[0] - imagehash_avg_hashes[j])
+
+
+print ("DCT HASHES")
+for j in range(len(dct_hashes)):
+    print (hamming_distance(dct_hashes[0], dct_hashes[j]))
+    print (imagehash_dct_hashes[0] - imagehash_dct_hashes[j])
+
+
 
 a_fake = a.copy()
 a_fake[0,:] = 0
@@ -74,8 +101,6 @@ print (a_fake_hash)
 print (b_hash)
 
 
-a_hash = imagehash.dhash(Image.fromarray(a), hash_size=hsize)
-b_hash = imagehash.dhash(Image.fromarray(b), hash_size=hsize)
 # print (a_hash)
 #
 # print (a_hash - b_hash)
