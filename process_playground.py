@@ -8,6 +8,7 @@ import imagehash
 import os
 from scipy.ndimage import maximum_filter, minimum_filter
 from hash import *
+from sklearn.decomposition import PCA
 
 # to 93457 to 93481 duplicates
 data = GreenstandDataset('nov11data.csv')
@@ -15,28 +16,67 @@ key1 = 93457
 key2 = 93481
 random_ids = np.loadtxt("onepercentids.txt")
 randoms = [data.read_image_from_db('random_zeroone_percent_db/', key=int(r)) for r in random_ids]
-
-# Comparison test
+#Comparison test
 a = data.read_image_from_db('duplicates_db/', key=key1)
 b = data.read_image_from_db('duplicates_db/', key=key2)
-images = [a, b] + randoms
-images = preprocess(images, size=100)
+dups = [data.read_image_from_db('1573_duplicates/', key=int(r)) for r in range(20)]
 
-# if doing hash comparison is slow consider switching to greyscale and
-# making images smaller
-# fig, axarr = plt.subplots(2,2, figsize=(8,8))
-# plt.suptitle("Sample images A=%d, B=%d, C=%d, D=%d"%(key1,key2,random_ids[0],random_ids[1]))
-# axarr[0,0].imshow(images[0], cmap='gray')
-# axarr[0,0].set_title("A")
-# axarr[1,0].imshow(images[1], cmap='gray')
-# axarr[1,0].set_title("B")
-# axarr[0,1].imshow(images[2], cmap='gray')
-# axarr[0,1].set_title("C")
-# axarr[1,1].imshow(images[3], cmap='gray')
-# axarr[1,1].set_title("D")
-# plt.savefig("playground_images/bw_histo_image_samples.jpg")
-# plt.show()
-# plt.figure()
+images = [a, b] + dups + randoms
+# known duplicates
+adjacency_matrix = np.identity(len(images)) * 2
+adjacency_matrix[0,1] = 1
+adjacency_matrix[1,0] = 1
+adjacency_matrix[2:len(dups) + 3, 2: len(dups) + 3] = 1
+
+def hash_accuracy(index, adj, hashes_by_index, hammings):
+    """
+    A heuristic to decide whether a hashing algorithm is working.
+    We want all sorted hashes of the same image to be together and all others to be far.
+    :param index: the index that is used to compute relative similarity
+    :param adj: adjacency matrix to decide which images are actually duplicates
+    :param hashes_by_index: the sorted indices of most similarity to teh queried index
+    :param hammings: the corresponding Hamming distances to hashes_by_index
+    :return:
+    """
+    error = 0 # the average hamming distance after the first misclassified
+    correct = 0
+    normalized_hd = np.array(hammings) / np.max(hammings) # allows even comparison of hashes with different ranges
+    if hashes_by_index[0] != index:
+        print ("Same image does not show minimal hash!")
+        return np.infty
+    duplicates = np.flatnonzero(adj[index,:])
+    thresh = -1
+    for j in range(len(hashes_by_index)):
+        if hashes_by_index[j] in duplicates and thresh == -1:
+            correct += 1
+        elif thresh == -1 and not hashes_by_index[j] in duplicates:
+            # the first occurrence of a non-adjacent image in the sorted hashes
+            thresh = j
+        elif thresh != -1 and hashes_by_index[j] in duplicates:
+            # penalize an actual duplicate coming after the first non-adjacent(nonduplicate)
+            # image
+            mistake_bound = j - thresh / len(hashes_by_index) # how far off first misclassification we are
+            error += mistake_bound * normalized_hd[j]
+            # this promotes small hamming distance in case the set of
+            # all images compared are similar to begin with.
+            # consider one similar nonduplicate coming before a tougher
+            # duplicate
+        else:
+            pass # do nothing for unrelated images
+
+    # correct = thresh
+    return correct, error
+
+
+
+
+
+
+print (len(images), " images")
+images = preprocess(images, size=100)
+pics = np.array(images).reshape((6,7, 100,100))
+images = np.array(images).reshape((-1, 100, 100))
+
 
 hsize = 8
 my_hasher = ImageHasher(hsize)
@@ -47,108 +87,24 @@ imagehash_dct_hashes = [imagehash.phash(Image.fromarray(img), hash_size=8, highf
 diff_hashes = [binary_array_to_int(my_hasher.difference_hash(img)) for img in images]
 avg_hashes = [binary_array_to_int(my_hasher.average_hash(img)) for img in images]
 dct_hashes = [binary_array_to_int(my_hasher.dct_hash(img)[0]) for img in images]
-dcts = [my_hasher.dct_hash(img)[1] for img in images]
-
-# n = 8
-# f, axarr = plt.subplots(2,2)
-# plt.suptitle("Sample DCTS A=%d, B=%d, C=%d, D=%d"%(key1,key2,key3,key4))
-# axarr[0,0].imshow(dcts[0][:n,:n])
-# axarr[0,0].set_title("A")
-# axarr[1,0].imshow(dcts[1][:n,:n])
-# axarr[1,0].set_title("B")
-# axarr[0,1].imshow(dcts[2][:n,:n])
-# axarr[0,1].set_title("C")
-# axarr[1,1].imshow(dcts[3][:n,:n])
-# axarr[1,1].set_title("D")
-# plt.savefig("playground_images/dcts.jpg")
-# plt.show()
-# plt.figure()
-
-print ("Comparison to ImageHash library")
-for i in range(len(images)):
-    print (i)
-    print ("-" * 50)
-    print ("AVERAGES")
-    print (str(imagehash_avg_hashes[i]) == hex(avg_hashes[i]))
-    print (str(imagehash_avg_hashes[i]))
-    print (hex(avg_hashes[i]))
-    print ("DIFF")
-    print (str(imagehash_diff_hashes[i]) == hex(diff_hashes[i]))
-    print (str(imagehash_diff_hashes[i]))
-    print (hex(diff_hashes[i]))
-    print ("DCT")
-    print (str(imagehash_dct_hashes[i]) == hex(dct_hashes[i]))
-    print (str(imagehash_dct_hashes[i]))
-    print (hex(dct_hashes[i]))
-
-
-print ("DIFFERENCE HASHES")
-for j in range(len(diff_hashes)):
-    print (hamming_distance(diff_hashes[0], diff_hashes[j]))
-    print (imagehash_diff_hashes[0] - imagehash_diff_hashes[j])
-print ("AVERAGE  HASHES")
-for j in range(len(avg_hashes)):
-    print (hamming_distance(avg_hashes[0], avg_hashes[j]))
-    print (imagehash_avg_hashes[0] - imagehash_avg_hashes[j])
-
-
-print ("DCT HASHES")
-for j in range(len(dct_hashes)):
-    print (hamming_distance(dct_hashes[0], dct_hashes[j]))
-    print (imagehash_dct_hashes[0] - imagehash_dct_hashes[j])
-
-
-
-a_fake = a.copy()
-a_fake[0,:] = 0
-# print (a[0,0])
-# print (a_fake[0,0])
-a_hash = imagehash.dhash(Image.fromarray(a), hash_size=hsize)
-a_fake_hash = imagehash.dhash(Image.fromarray(a_fake),hash_size=hsize)
-b_hash = imagehash.dhash(Image.fromarray(b), hash_size=hsize)
-
-print ("A vs A_fake vs B")
-print (a_hash)
-print (a_fake_hash)
-print (b_hash)
-print (a_hash - b_hash)
-
-def ext_viz(img, filter_size, nbins=8):
-    max_filtered = maximum_filter(img, size=(filter_size, filter_size))
-    min_filtered = minimum_filter(img, size=(filter_size,filter_size))
-    f, axarr = plt.subplots(2,3)
-    axarr[0,0].imshow(max_filtered)
-    axarr[0,1].imshow(min_filtered)
-    axarr[0,2].imshow(max_filtered - min_filtered)
-    axarr[1,0].plot(np.histogram(max_filtered, bins=nbins)[0])
-    axarr[1,0].grid()
-    axarr[1,1].plot(np.histogram(min_filtered, bins=nbins)[0])
-    axarr[1,1].grid()
-    axarr[1,2].plot(np.histogram(max_filtered - min_filtered, bins=8)[0])
-    axarr[1,2].grid()
-    plt.show()
-    return max_filtered, min_filtered
-#
-# max0, min0 = ext_viz(images[0], 8, nbins=8)
-# max1, min1 = ext_viz(images[1], 8, nbins=8)
-# max2, min2 = ext_viz(images[2], 8)
-# max3, min3 = ext_viz(images[3], 8)
-
-
-
+dct_matrices = [my_hasher.dct_hash(img)[1] for img in images] # DCT matrices not hashes
 histo_hashes = [binary_array_to_int(my_hasher.histo_hash(img, 64, 5)) for img in images]
-histo_hybrid_hashes = [binary_array_to_int(my_hasher.histo_avg_hash(img)) for img in images]
+histo_hybrid_hashes = [binary_array_to_int(my_hasher.histo_avg_hash(img, filter_size=3,thresh=None)) for img in images]
 
 
 
-
+print ("IMAGE 0")
 print ("AVERAGE HASH")
 idxs, hams = hamming_sort(avg_hashes[0], avg_hashes)
 print (idxs)
 print (hams)
+correct, error = hash_accuracy(0, adjacency_matrix, idxs, hams)
+print ("Correct: ", correct)
+print ("Error: ", error)
+
 
 f, axarr = plt.subplots(2,2)
-plt.suptitle("Top 4 matches of average hashing")
+plt.suptitle("Top 4 matches of average hashing image 0")
 axarr[0, 0].imshow(images[idxs[0]])
 axarr[1, 0].imshow(images[idxs[1]])
 axarr[0, 1].imshow(images[idxs[2]])
@@ -160,9 +116,12 @@ print ("DIFFERENCE HASH")
 idxs, hams = hamming_sort(diff_hashes[0], diff_hashes)
 print (idxs)
 print (hams)
+correct, error = hash_accuracy(0, adjacency_matrix, idxs, hams)
+print ("Correct: ", correct)
+print ("Error: ", error)
 
 f, axarr = plt.subplots(2,2)
-plt.suptitle("Top 4 matches of difference hashing")
+plt.suptitle("Top 4 matches of difference hashing image 0")
 axarr[0, 0].imshow(images[idxs[0]])
 axarr[1, 0].imshow(images[idxs[1]])
 axarr[0, 1].imshow(images[idxs[2]])
@@ -170,13 +129,17 @@ axarr[1, 1].imshow(images[idxs[3]])
 plt.show()
 
 
-print ("PROPOSED HISTOGRAM HASH")
+print ("PROPOSED HISTOGRAM HASH image 0")
 idxs, hams = hamming_sort(histo_hashes[0], histo_hashes)
 print (idxs)
 print (hams)
+correct, error = hash_accuracy(0, adjacency_matrix, idxs, hams)
+print ("Correct: ", correct)
+print ("Error: ", error)
+
 
 f, axarr = plt.subplots(2,2)
-plt.suptitle("Top 4 matches of histogram hashing")
+plt.suptitle("Top 4 matches of histogram hashing image 0")
 axarr[0, 0].imshow(images[idxs[0]])
 axarr[1, 0].imshow(images[idxs[1]])
 axarr[0, 1].imshow(images[idxs[2]])
@@ -184,17 +147,113 @@ axarr[1, 1].imshow(images[idxs[3]])
 plt.show()
 
 
-print ("PROPOSED MODIFIED HISTOGRAM HASH")
+print ("PROPOSED MODIFIED HISTOGRAM HASH image 0")
 idxs, hams = hamming_sort(histo_hybrid_hashes[0], histo_hybrid_hashes)
 print (idxs)
 print (hams)
+correct, error = hash_accuracy(0, adjacency_matrix, idxs, hams)
+print ("Correct: ", correct)
+print ("Error: ", error)
+
 
 
 
 f, axarr = plt.subplots(2,2)
-plt.suptitle("Top 4 matches of modified histogram hashing")
+plt.suptitle("Top 4 matches of modified histogram hashing image 0")
 axarr[0, 0].imshow(images[idxs[0]])
 axarr[1, 0].imshow(images[idxs[1]])
 axarr[0, 1].imshow(images[idxs[2]])
 axarr[1, 1].imshow(images[idxs[3]])
 plt.show()
+
+
+
+
+print ("IMAGE 3")
+print ("AVERAGE HASH")
+idxs, hams = hamming_sort(avg_hashes[3], avg_hashes)
+print (idxs)
+print (hams)
+correct, error = hash_accuracy(3, adjacency_matrix, idxs, hams)
+print ("Correct: ", correct)
+print ("Error: ", error)
+
+
+f, axarr = plt.subplots(2,2)
+plt.suptitle("Top 4 matches of average hashing image 3")
+axarr[0, 0].imshow(images[idxs[0]])
+axarr[1, 0].imshow(images[idxs[1]])
+axarr[0, 1].imshow(images[idxs[2]])
+axarr[1, 1].imshow(images[idxs[3]])
+plt.show()
+
+
+print ("DIFFERENCE HASH")
+idxs, hams = hamming_sort(diff_hashes[3], diff_hashes)
+print (idxs)
+print (hams)
+correct, error = hash_accuracy(3, adjacency_matrix, idxs, hams)
+print ("Correct: ", correct)
+print ("Error: ", error)
+
+
+f, axarr = plt.subplots(2,2)
+plt.suptitle("Top 4 matches of difference hashing image 3")
+axarr[0, 0].imshow(images[idxs[0]])
+axarr[1, 0].imshow(images[idxs[1]])
+axarr[0, 1].imshow(images[idxs[2]])
+axarr[1, 1].imshow(images[idxs[3]])
+plt.show()
+
+
+print ("PROPOSED HISTOGRAM HASH image 3")
+idxs, hams = hamming_sort(histo_hashes[3], histo_hashes)
+print (idxs)
+print (hams)
+correct, error = hash_accuracy(3, adjacency_matrix, idxs, hams)
+print ("Correct: ", correct)
+print ("Error: ", error)
+
+
+f, axarr = plt.subplots(2,2)
+plt.suptitle("Top 4 matches of histogram hashing image 3")
+axarr[0, 0].imshow(images[idxs[0]])
+axarr[1, 0].imshow(images[idxs[1]])
+axarr[0, 1].imshow(images[idxs[2]])
+axarr[1, 1].imshow(images[idxs[3]])
+plt.show()
+
+
+print ("PROPOSED MODIFIED HISTOGRAM HASH image 3")
+idxs, hams = hamming_sort(histo_hybrid_hashes[3], histo_hybrid_hashes)
+print (idxs)
+print (hams)
+correct, error = hash_accuracy(3, adjacency_matrix, idxs, hams)
+print ("Correct: ", correct)
+print ("Error: ", error)
+
+f, axarr = plt.subplots(2,2)
+plt.suptitle("Top 4 matches of modified histogram hashing image 3")
+axarr[0, 0].imshow(images[idxs[0]])
+axarr[1, 0].imshow(images[idxs[1]])
+axarr[0, 1].imshow(images[idxs[2]])
+axarr[1, 1].imshow(images[idxs[3]])
+plt.show()
+
+def print_groups(adj):
+    """
+    Helper function to print out which subsets are duplicates
+    :param adj: adjacency matrix
+    :return: list of lists each containing a cluster of duplicates (size-1 indicates no duplicates)
+    """
+    unaccounteds = np.arange(0, adj.shape[0])
+    clusters = []
+    i = 0
+    while len(unaccounteds) != 0 and i < adj.shape[0]:
+        connected = np.sort(np.flatnonzero(adj[i,:]))
+        unaccounteds.delete()
+        i = unaccounteds[0]
+    return clusters
+
+print (print_groups(adjacency_matrix))
+

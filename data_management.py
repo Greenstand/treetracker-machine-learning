@@ -67,7 +67,11 @@ class GreenstandDataset():
                     for j in range(max_entries): # could itreate through all entries theoretically but need full memory
                         # Start a new write transaction
                         # All key-value pairs need to be strings
-                        txn.put(str(self.data.loc[j + begin_idx]["id"]).encode("ascii"),pickle.dumps(self.render_image(self.data.loc[j]["image_url"])))
+                        if "id" in self.data.columns:  # DataFrame-like urls
+                            txn.put(str(self.data.loc[j + begin_idx]["id"]).encode("ascii"),pickle.dumps(self.render_image(self.data.loc[j]["image_url"])))
+                        else: # list-like urls
+                            print (self.data.loc[j].values[0])
+                            txn.put(str(j).encode("ascii"), pickle.dumps(self.render_image(self.data.loc[j].values[0])))
             env.close()
         else: # write a database of the given ids
             print ("Writing ids: ")
@@ -93,10 +97,11 @@ class GreenstandDataset():
             data = pickle.loads(txn.get(str(key).encode("ascii")))
         return data
 
+    def get_location(self, key):
+        return self.data
+
 if __name__ == "__main__":
-    data = GreenstandDataset('nov11data.csv')
+    data = GreenstandDataset('duplicate_urls/1573_duplicates.txt')
     data.populate() # necessary if writing to database
-    lmdb_path = os.path.join(os.getcwd(),"random_zeroone_percent_db")
-    onepercent = data.data["id"].sample(n=20).values
-    data.write_database(lmdb_path,max_entries=25, ids=onepercent)
-    np.savetxt("onepercentids.txt", onepercent)
+    lmdb_path = os.path.join(os.getcwd(),"1573_duplicates")
+    data.write_database(lmdb_path,max_entries=25)

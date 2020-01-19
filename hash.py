@@ -1,8 +1,7 @@
 import cv2
 import numpy as np
 from scipy.fft import dctn
-from scipy.ndimage import maximum_filter, minimum_filter
-
+from scipy.ndimage import maximum_filter, minimum_filter, gaussian_filter
 
 def hamming_sort(candidate_image_hash, compared_image_hashes):
     '''
@@ -51,27 +50,6 @@ def preprocess(images, size, interp=cv2.INTER_AREA):
             np.uint8(
             cv2.normalize(img, None, 0, 255, cv2.NORM_MINMAX)) ,cv2.COLOR_BGR2GRAY), (size,size), interpolation=interp)for img in images]  # or convert) for img in images]
 
-
-class HashCode():
-    """
-    Object representation to convert between hash code binary, hex, and int representations and compute distance.
-    See https://github.com/JohannesBuchner/imagehash for the open-source implementation that
-    this class derives from.
-
-    For some intuition: we want image hashes to be as close together as possible for similar looking images. Identical images
-    should always produce the exact same hash output. So what we're really trying to do is define similarity of two images.
-    Hashes work by finding a unique binary representation. Let us call h(f) be a criterion h over a pixel intensity value f.
-    Because each integer has a unique binary representation, only two images with the same h(f) will output the same hash. Note that
-    this does not necessarily mean the images are exactly the same but, we can say for large images, this assumption is reasonable,
-    and two images with same h(f). The following methods use different h(f) criterion so that h(f1)-h(f2) is larger if f1 - f2 is large
-    and smaller if f1 -f2 is small, where f is generally some information vector about the pixel intensity and possibly its location.
-    """
-
-    def __init__(self, binary_array):
-        self.hash = binary_array
-
-    def __str__(self):
-        pass
 
 
 class ImageHasher():
@@ -149,11 +127,11 @@ class ImageHasher():
         '''
         diff = maximum_filter(img, size=(filter_size, filter_size)) - minimum_filter(img, size=(filter_size,filter_size))
         histo = np.histogram(diff, bins=nbins)[0]
-        histo = np.log10(histo + 1)
+        # histo = np.log10(histo + 1)
         return  histo > np.median(histo)
 
 
-    def histo_avg_hash(self, img, nbins=32, filter_size=5):
+    def histo_avg_hash(self, img, nbins=32, filter_size=5, thresh=None):
         '''
         Use histogram of pixel intensity values to generate non-positional hash and concatenate to
         average hash so positional and nonpositional information is accounted for.
@@ -161,8 +139,9 @@ class ImageHasher():
         :param filter_size: size of square max/min filtering operations
         :return:
         '''
-        diff = maximum_filter(img, size=(filter_size, filter_size)) - minimum_filter(img, size=(filter_size,filter_size))
-        histo = np.histogram(diff, bins=nbins)[0]
-        histo = np.log10(histo + 1)
+        diff = maximum_filter(img, size=(filter_size, filter_size))
+        histo = np.histogram(diff, bins=nbins, range=(0, 255))[0]
         resized = cv2.resize(img, (8,8))
-        return np.concatenate([histo > np.median(histo), (resized > np.mean(resized)).flatten()])
+        if thresh is None:
+            thresh = np.sum(histo) / nbins
+        return np.concatenate([histo > thresh, (resized > np.mean(resized)).flatten()])
