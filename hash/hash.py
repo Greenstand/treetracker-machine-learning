@@ -7,8 +7,8 @@ def hamming_sort(candidate_image_hash, compared_image_hashes):
     '''
     A helper function to sort a list of image hashes (represented as integers) by Hamming distance from the
     specified candidate image hash
-    :param candidate_image_hash: Hash to look for
-    :param compared_image_hashes: List of integers consisting of the image hashes to compare to
+    :param candidate_image_hash: (int) Hash to look for
+    :param compared_image_hashes: (list(int)) consisting of the image hashes to compare to
     :return: tuple(np.ndarray, np.ndarray) of sorted arguments and the corresponding hamming distance
     '''
     hammings = [hamming_distance(candidate_image_hash, h) for h in compared_image_hashes]
@@ -20,8 +20,8 @@ def binary_array_to_int(arr):
     '''
     Helper function to take binary bitmask and return sum of 2 ** x for each index x in the flattened arr
     such that arr[x] = 1.
-    :param arr: binary array
-    :return: int
+    :param arr: (np.ndarray) binary array
+    :return: (int) operation result
     '''
     return int(np.sum(np.exp2(np.flatnonzero(arr))))
 
