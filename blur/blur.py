@@ -13,24 +13,27 @@ class BlurDetection ():
     def log_var(self, img):
         '''
         Tutorial from https://www.pyimagesearch.com/2015/09/07/blur-detection-with-opencv/
-        LoG operator returns edges, so low variance means more blurred due to fewer edges
+        LoG operator returns edges, so low variance means more blurred due to fewer edges.
+        Returns per variance per pixel, allowing larger images to not be penalized as blurry.
         :param img: image to process
         :return:
         '''
 
-        return cv2.Laplacian(grayscale(img), cv2.CV_64F).var()
+        return cv2.Laplacian(grayscale(img), cv2.CV_64F).var() / np.prod(img.shape)
 
     def fft_filter(self, img, bw):
         '''
         Low pass filter using 2D FFT
         :param img: image to process
-        :param bw: bw (int) low-pass filter bandwidth
-        :return: filtered img
+        :param bw: bw (int) low-pass filter bandwidth = freq.shape - bw * 2
+        :return: filtered img in [0-1] intensity range.
         '''
-        freq = np.fft.fft2(img)
-        # mask = np.ones(freq.shape)
-        # mask [mask.shape[0] // 2 - bw : mask.shape[0] // 2 + bw, mask.shape[1] // 2 - bw : mask.shape[1] // 2 + bw] = 1
-        # freq = np.multiply(freq, mask)
+        freq = np.fft.fft2(img / np.max(img)) # normalizes image for numerical stability
+        mask = np.zeros(freq.shape)
+        mask [bw: -bw, bw: -bw] = 1.0
+
+        # mask [mask.shape[0] // 2 - bw : mask.shape[0] // 2 + bw, mask.shape[1] // 2 - bw : mask.shape[1] // 2 + bw] = 1.0
+        freq = np.multiply(freq, mask)
         return np.fft.ifft2(freq)
 
 
@@ -49,24 +52,23 @@ if __name__=="__main__":
     blurrer = BlurDetection(100)
     for i in range(0,5):
         for j in range(0,4):
-            var = blurrer.log_var(randoms[4 * i + j])
-            axarr[i, j].set_title(var)
+            var = blurrer.log_var(randoms[4 * i + j]) # 0.01 seems like a fair threshold for this: over this variance is
+            axarr[i, j].set_title(f"{var:.2E}")
             axarr[i, j].imshow(grayscale(randoms[4  * i + j]), cmap='gray')
     plt.show()
     f, axarr = plt.subplots(5,4, figsize=(20,20))
     for i in range(0,5):
         for j in range(0,4):
-            var = blurrer.log_var(cv2.GaussianBlur(randoms[4 * i + j], (9,9), 0))
-            axarr[i, j].set_title(var)
-            axarr[i, j].imshow(cv2.GaussianBlur(grayscale(randoms[4 * i + j]), (7,7), 0), cmap='gray')
+            var = blurrer.log_var(cv2.GaussianBlur(randoms[4 * i + j], (3,3), sigmaX=0))
+            axarr[i, j].set_title(f"{var:.2E}")
+            axarr[i, j].imshow(cv2.GaussianBlur(grayscale(randoms[4 * i + j]), (3,3), sigmaX=0), cmap='gray')
 
     plt.show()
-    f, axarr = plt.subplots(5,4, figsize=(20,20))
+    # f, axarr = plt.subplots(5,4, figsize=(20,20))
 
-    for i in range(0,5):
-        for j in range(0,4):
-            imgfft = blurrer.fft_filter(randoms[4 * i + j], 3 * randoms[4 * i + j].shape[0] // 4)
-            print (np.min(imgfft), np.max(imgfft))
-            axarr[i, j].imshow(np.abs(imgfft), cmap='gray')
-
-    plt.show()
+    # for i in range(0,5):
+    #     for j in range(0,4):
+    #         imgfft = blurrer.fft_filter(randoms[4 * i + j], 200)
+    #         axarr[i, j].imshow(np.real(imgfft), cmap='gray')
+    #
+    # plt.show()
