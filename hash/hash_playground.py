@@ -6,9 +6,8 @@ import cv2
 import numpy as np
 import imagehash
 import os
-from scipy.ndimage import maximum_filter, minimum_filter
 from hash import *
-from sklearn.decomposition import PCA
+
 
 homepath = os.getcwd()[:-4]
 print (homepath)
@@ -30,55 +29,34 @@ adjacency_matrix[0,1] = 1
 adjacency_matrix[1,0] = 1
 adjacency_matrix[2:len(dups) + 3, 2: len(dups) + 3] = 1
 
-def hash_accuracy(index, adj, hashes_by_index, hammings):
-    """
-    A heuristic to decide whether a hashing algorithm is working.
-    We want all sorted hashes of the same image to be together and all others to be far.
-    :param index: the index that is used to compute relative similarity
-    :param adj: adjacency matrix to decide which images are actually duplicates
-    :param hashes_by_index: the sorted indices of most similarity to teh queried index
-    :param hammings: the corresponding Hamming distances to hashes_by_index
-    :return:
-    """
-    error = 0 # the average hamming distance after the first misclassified
-    correct = 0
-    normalized_hd = np.array(hammings) / np.max(hammings) # allows even comparison of hashes with different ranges
-    if hashes_by_index[0] != index:
-        print ("Same image does not show minimal hash!")
-        return np.infty
 
-    duplicates = np.flatnonzero(adj[index,:])
-    thresh = -1
-    for j in range(len(hashes_by_index)):
-        if hashes_by_index[j] in duplicates and thresh == -1:
-            correct += 1
-        elif thresh == -1 and not hashes_by_index[j] in duplicates:
-            # the first occurrence of a non-adjacent image in the sorted hashes
-            thresh = j
-        elif thresh != -1 and hashes_by_index[j] in duplicates:
-            # penalize an actual duplicate coming after the first non-adjacent(nonduplicate)
-            # image
-            mistake_bound = j - thresh / len(hashes_by_index) # how far off first misclassification we are
-            error += mistake_bound * normalized_hd[j]
-            # this promotes small hamming distance in case the set of
-            # all images compared are similar to begin with.
-            # consider one similar nonduplicate coming before a tougher
-            # duplicate
-        else:
-            pass # do nothing for unrelated images
-
-    # correct = thresh
-    return correct, error
+# 42 images in total
+rsz = 200
+ks = 7
+#
+# plt.title("Original")
+# plt.imshow(images[0])
+# plt.show()
+#
+#
+# plt.title("Resize")
+# plt.imshow(cv2.resize(images[0],(rsz, rsz)))
+# plt.show()
+#
+# plt.title("Gauss")
+# plt.imshow(cv2.GaussianBlur(images[0], (ks, ks),0))
+# plt.show()
+#
+# plt.title("Gauss Resize")
+# plt.imshow(cv2.resize(cv2.GaussianBlur(images[0], (ks, ks),0), (rsz,rsz)))
+# plt.show()
 
 
 
 
-
-
-print (len(images), " images")
-images = preprocess(images, size=100)
-pics = np.array(images).reshape((6,7, 100,100))
-images = np.array(images).reshape((-1, 100, 100))
+images = preprocess(images, size=rsz,ksize=ks)
+pics = np.array(images).reshape((6,7, rsz, rsz))
+images = np.array(images).reshape((-1, rsz, rsz))
 
 
 hsize = 8
@@ -95,7 +73,6 @@ histo_hashes = [binary_array_to_int(my_hasher.histo_hash(img, 64, 5)) for img in
 histo_hybrid_hashes = [binary_array_to_int(my_hasher.histo_avg_hash(img, filter_size=3,thresh=None)) for img in images]
 
 
-
 print ("IMAGE 0")
 print ("AVERAGE HASH")
 idxs, hams = hamming_sort(avg_hashes[0], avg_hashes)
@@ -109,6 +86,7 @@ print ("Error: ", error)
 f, axarr = plt.subplots(2,2)
 plt.suptitle("Top 4 matches of average hashing image 0")
 axarr[0, 0].imshow(images[idxs[0]])
+axarr[0, 0].set_title("Original")
 axarr[1, 0].imshow(images[idxs[1]])
 axarr[0, 1].imshow(images[idxs[2]])
 axarr[1, 1].imshow(images[idxs[3]])
@@ -126,6 +104,7 @@ print ("Error: ", error)
 f, axarr = plt.subplots(2,2)
 plt.suptitle("Top 4 matches of difference hashing image 0")
 axarr[0, 0].imshow(images[idxs[0]])
+axarr[0, 0].set_title("Original")
 axarr[1, 0].imshow(images[idxs[1]])
 axarr[0, 1].imshow(images[idxs[2]])
 axarr[1, 1].imshow(images[idxs[3]])
@@ -144,6 +123,8 @@ print ("Error: ", error)
 f, axarr = plt.subplots(2,2)
 plt.suptitle("Top 4 matches of histogram hashing image 0")
 axarr[0, 0].imshow(images[idxs[0]])
+axarr[0, 0].set_title("Original")
+
 axarr[1, 0].imshow(images[idxs[1]])
 axarr[0, 1].imshow(images[idxs[2]])
 axarr[1, 1].imshow(images[idxs[3]])
@@ -242,23 +223,6 @@ axarr[1, 0].imshow(images[idxs[1]])
 axarr[0, 1].imshow(images[idxs[2]])
 axarr[1, 1].imshow(images[idxs[3]])
 plt.show()
-
-def print_groups(adj):
-    """
-    Helper function to print out which subsets are duplicates
-    :param adj: adjacency matrix
-    :return: list of ndarrays each containing indices of duplicates (size=1 indicates no duplicates)
-    """
-    unaccounteds = list(range(adj.shape[0]))
-    clusters = []
-    i = -1
-    while len(unaccounteds) != 0 and i < adj.shape[0]:
-        i = unaccounteds[0]
-        connected = np.sort(np.flatnonzero(adj[i,:])) # get connected pixel by indexs
-        clusters.append(connected)
-        for val in connected:
-            unaccounteds.remove(val)
-    return clusters
 
 print (print_groups(adjacency_matrix))
 

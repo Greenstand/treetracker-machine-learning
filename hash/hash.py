@@ -39,20 +39,78 @@ def hamming_distance(img1_hash, img2_hash):
     return np.binary_repr(img1_hash ^ img2_hash).count("1")
 
 
-def preprocess(images, size, interp=cv2.INTER_AREA, ksize=3, sigma=4.0):
+def preprocess(images, size, interp=cv2.INTER_AREA, ksize=3):
     '''
     Short method to apply several transformations before hashing procedure.
     :param images: (list) images to transform
     :return: (list) of transformed images corresponding to passed images
     '''
     ret = []
-    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(5, 5))
     for img in images:
         col = cv2.cvtColor(np.uint8(cv2.normalize(img, None, 0, 255, cv2.NORM_MINMAX)) , cv2.COLOR_BGR2GRAY)
-        blur = cv2.GaussianBlur(src=col, ksize=(ksize,ksize), sigmaX=sigma)
+        blur = cv2.GaussianBlur(col, (ksize,ksize), 0)
         resized = cv2.resize(blur, (size,size), interpolation=interp)
-        ret.append(clahe.apply(resized))
+        ret.append(cv2.equalizeHist(resized))
     return ret
+
+def print_groups(adj):
+    """
+    Helper function to print out which subsets are duplicates
+    :param adj: adjacency matrix
+    :return: list of ndarrays each containing indices of duplicates (size=1 indicates no duplicates)
+    """
+    unaccounteds = list(range(adj.shape[0]))
+    clusters = []
+    i = -1
+    while len(unaccounteds) != 0 and i < adj.shape[0]:
+        i = unaccounteds[0]
+        connected = np.sort(np.flatnonzero(adj[i,:])) # get connected pixel by indexs
+        clusters.append(connected)
+        for val in connected:
+            unaccounteds.remove(val)
+    return clusters
+
+def hash_accuracy(index, adj, hashes_by_index, hammings):
+    """
+    A heuristic to decide whether a hashing algorithm is working.
+    We want all sorted hashes of the same image to be together and all others to be far.
+    :param index: the index that is used to compute relative similarity
+    :param adj: adjacency matrix to decide which images are actually duplicates
+    :param hashes_by_index: the sorted indices of most similarity to teh queried index
+    :param hammings: the corresponding Hamming distances to hashes_by_index
+    :return:
+    """
+    error = 0 # the average hamming distance after the first misclassified
+    correct = 0
+    normalized_hd = np.array(hammings) / np.max(hammings) # allows even comparison of hashes with different ranges
+    if hashes_by_index[0] != index:
+        print ("Same image does not show minimal hash!")
+        return np.infty
+
+    duplicates = np.flatnonzero(adj[index,:])
+    thresh = -1
+    for j in range(len(hashes_by_index)):
+        if hashes_by_index[j] in duplicates and thresh == -1:
+            correct += 1
+        elif thresh == -1 and not hashes_by_index[j] in duplicates:
+            # the first occurrence of a non-adjacent image in the sorted hashes
+            thresh = j
+        elif thresh != -1 and hashes_by_index[j] in duplicates:
+            # penalize an actual duplicate coming after the first non-adjacent(nonduplicate)
+            # image
+            mistake_bound = j - thresh / len(hashes_by_index) # how far off first misclassification we are
+            error += mistake_bound * normalized_hd[j]
+            # this promotes small hamming distance in case the set of
+            # all images compared are similar to begin with.
+            # consider one similar nonduplicate coming before a tougher
+            # duplicate
+        else:
+            pass # do nothing for unrelated images
+
+    # correct = thresh
+    return correct, error
+
+
 
 class ImageHasher():
     """
@@ -127,9 +185,8 @@ class ImageHasher():
         :param filter_size: size of square max/min filtering operations
         :return: (np.ndarray) binary array
         '''
-        diff = maximum_filter(img, size=(filter_size, filter_size)) - minimum_filter(img, size=(filter_size,filter_size))
-        histo = np.histogram(diff, bins=nbins)[0]
-        # histo = np.log10(histo + 1)
+        # diff = maximum_filter(img, size=(filter_size, filter_size)) - minimum_filter(img, size=(filter_size,filter_size))
+        histo = np.histogram(img, bins=nbins)[0]
         return  histo > np.median(histo)
 
 
@@ -141,9 +198,9 @@ class ImageHasher():
         :param filter_size: size of square max/min filtering operations
         :return:
         '''
-        diff = maximum_filter(img, size=(filter_size, filter_size))
-        histo = np.histogram(diff, bins=nbins, range=(0, 255))[0]
-        resized = cv2.resize(img, (8,8))
+        # diff = maximum_filter(img, size=(filter_size, filter_size))
+        histo = np.histogram(img, bins=nbins, range=(0, 255))[0]
+        resized = cv2.resize(img, (self.size, self.size))
         if thresh is None:
             thresh = np.sum(histo) / nbins
         return np.concatenate([histo > thresh, (resized > np.mean(resized)).flatten()])
