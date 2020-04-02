@@ -1,5 +1,6 @@
 from data.data_management import GreenstandDataset
 import matplotlib.pyplot as plt
+from matplotlib.colors import hsv_to_rgb, rgb_to_hsv
 from PIL import Image
 from matplotlib.colors import hsv_to_rgb
 import cv2
@@ -99,30 +100,28 @@ def hash_algorithm_display(hasher, image_idx, images, hash_algo, verbose=False):
 
 
 rsz = 200
-ks = 1
-for k in range(3):
-    if k == 0:
-        t = "Red Channel"
-    elif k == 1:
-        t = "Green Channel"
-    elif k == 2:
-        t = "Blue Channel"
-    else:
-        raise ValueError
+ks = 3
 
-    resizes  = [cv2.resize(i[:,:,k], (rsz,rsz)) for i in images]
+
+for skip in [1,2,4, 8]:
+    resizes = [cv2.resize(i, (rsz // skip, rsz // skip)) for i in images]
     blurs = [cv2.GaussianBlur(i, (ks, ks), 0) for i in resizes]
-    stds = []
+    hsvs = [rgb_to_hsv(a) for a in blurs]
+
     f, axarr = plt.subplots (6,7,figsize=(20,20))
-    pics = np.array(blurs).reshape((6,7, rsz, rsz))
+    pics = np.array(hsvs).reshape((6,7, rsz // skip, rsz // skip, 3))
     for i in range(pics.shape[0]):
         for j in range(pics.shape[1]):
-            axarr[i,j].imshow(pics[i, j])
-            stds.append(np.std(pics[i,j]))
-    print ("%s Average Std: "%t, np.mean(stds))
-    plt.suptitle(t)
+            thresh = np.median(pics[i,j,:,:,2]) - np.qua
+            thresh2 = 240
+            hsv_mask = np.where((pics[i, j, :, :, 2] < thresh) | (pics[i, j, :, :, 2] > thresh2))
+            im = pics[i, j]
+            im[hsv_mask] = 0
+
+            axarr[i,j].imshow(hsv_to_rgb(im)/ 255)
+    plt.suptitle("skip: %d, low_thresh: %d, high_thresh: %d"%(skip, thresh, thresh2))
     plt.show()
-    #
+
 # images = preprocess(images, size=rsz,ksize=ks)
 # pics = np.array(images).reshape((6,7, rsz, rsz))
 # f, axarr = plt.subplots (6,7,figsize=(20,20))
