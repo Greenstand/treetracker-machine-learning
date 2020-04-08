@@ -1,13 +1,13 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="process_playground" type="PythonConfigurationType" factoryName="Python">
+  <configuration default="false" name="greenstand" type="PythonConfigurationType" factoryName="Python">
     <module name="greenstand" />
-    <option name="INTERPRETER_OPTIONS" value="" />
+    <option name="INTERPRETER_OPTIONS" value="C:\Users\shubh\OneDrive\Documents\greenstand\virtual_env\Scripts\python.exe" />
     <option name="PARENT_ENVS" value="true" />
     <envs>
       <env name="PYTHONUNBUFFERED" value="1" />
     </envs>
     <option name="SDK_HOME" value="C:\Users\shubh\OneDrive\Documents\greenstand\virtual_env\Scripts\python.exe" />
-    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+    <option name="WORKING_DIRECTORY" value="C:\Users\shubh\OneDrive\Documents\greenstand\" />
     <option name="IS_MODULE_SDK" value="false" />
     <option name="ADD_CONTENT_ROOTS" value="false" />
     <option name="ADD_SOURCE_ROOTS" value="false" />
