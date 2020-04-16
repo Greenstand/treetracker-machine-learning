@@ -1,7 +1,6 @@
 import cv2
 import numpy as np
 from scipy.fft import dctn
-from scipy.ndimage import maximum_filter, minimum_filter, gaussian_filter
 
 def hamming_sort(candidate_image_hash, compared_image_hashes):
     '''
@@ -11,9 +10,8 @@ def hamming_sort(candidate_image_hash, compared_image_hashes):
     :param compared_image_hashes: (list(int)) consisting of the image hashes to compare to
     :return: tuple(np.ndarray, np.ndarray) of sorted arguments and the corresponding hamming distance
     '''
-    hammings = [hamming_distance(candidate_image_hash, h) for h in compared_image_hashes]
-    idxs = np.argsort(hammings)
-    return idxs, np.sort(hammings)
+    hammings = np.array([hamming_distance(candidate_image_hash, h) for h in compared_image_hashes])
+    return np.argsort(hammings), np.sort(hammings)
 
 
 def binary_array_to_int(arr):
@@ -28,7 +26,7 @@ def binary_array_to_int(arr):
 
 def hamming_distance(img1_hash, img2_hash):
     '''
-    Count number of bits that are different between two binary hashes. In test.py, we show
+    Count number of bits that are different between two binary hashes. In test_hash_calcs.py, we show
     this method is ~ 2.5x faster than the ImageHash version
     :param img1_hash: (int) self.hash_size bit hash of first candidate image. Expects decimal input.
     :param img2_hash: (int) self.hash_size bit hash of second candidate image. Expects decimal input.
@@ -46,6 +44,9 @@ def preprocess(images, size, interp=cv2.INTER_AREA, ksize=3):
     :return: (list) of transformed images corresponding to passed images
     '''
     ret = []
+    if type(images) is not list:
+        images = [images]
+
     for img in images:
         col = cv2.cvtColor(np.uint8(cv2.normalize(img, None, 0, 255, cv2.NORM_MINMAX)) , cv2.COLOR_BGR2GRAY)
         blur = cv2.GaussianBlur(col, (ksize,ksize), 0)
@@ -131,8 +132,6 @@ class ImageHasher():
         :return:
         '''
         resized = cv2.resize(img, (self.size, self.size), interpolation=cv2.INTER_AREA)
-        # following one liner avoids unnecessary variable assignment. The average hash takes the mean grayscal pixel intensity
-        # and generates hash from (flattened) indices greater than the mean
         return resized > np.mean(resized)
 
     def difference_hash(self, img):
@@ -145,8 +144,6 @@ class ImageHasher():
         :return: (int) 2 ** hash_size bit image hash function returned as int (not hex or binary)
         '''
         resized = cv2.resize(img, (self.size + 1, self.size), interpolation=cv2.INTER_AREA)
-        # following one liner avoids unnecessary variable assignment. The difference hash takes the left-right difference
-        # of grayscale pixel intensities and generates a hash from the indices
         return resized[:, 1:] > resized[:, :-1]
 
 
@@ -204,3 +201,24 @@ class ImageHasher():
         if thresh is None:
             thresh = np.sum(histo) / nbins
         return np.concatenate([histo > thresh, (resized > np.mean(resized)).flatten()])
+
+if __name__ == "__main__":
+    import os
+
+    data_dir = os.path.join(os.path.dirname(os.getcwd()), "data", "kilema_tanzania")
+    hasher = ImageHasher(8) # will create 28 bit hash
+    print (data_dir)
+    hashes = {}
+    for f, _, d in os.walk(data_dir):
+        for fil in d:
+            fullpath = os.path.join(f, fil)
+            if os.path.splitext(fullpath)[1] == ".jpg":
+                im = cv2.imread(fullpath)
+                preprocess(im, size=200)
+                hash = hasher.average_hash(im)
+                hashes[os.path.split(fullpath)[1]] = binary_array_to_int(hash)
+
+    args, hs = hamming_sort(hashes["107.jpg"], hashes.values())
+    j = hs[hs == 0].shape[0]
+    print ("Perfect matches:")
+    print (np.array(list(hashes.keys()))[args][:j])

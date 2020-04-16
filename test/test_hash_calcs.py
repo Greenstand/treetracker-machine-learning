@@ -1,15 +1,17 @@
-from hash import ImageHasher, hamming_distance, binary_array_to_int, preprocess
-import imagehash
 import unittest
+import imagehash
 import numpy as np
 import time
+import imagehash
 from PIL import Image
+
+from hash.hash import hamming_distance, binary_array_to_int, preprocess, ImageHasher
 
 class CorrectHamming(unittest.TestCase):
     verified = ( ((1, 1),0), # same two inputs
                  ((0, 150), 4), # zero input
                  ((0x0d5585f2ed36cc3758b4d, 0x0d5585f2ed36cc3758b4d), 0),
-                 ((1, 1), 0),
+                 ((1, 1), 0), # TODO: add tests
                  ((1, 1), 0),
                  ((1, 1), 0),
                  )
@@ -46,7 +48,7 @@ class CorrectHamming(unittest.TestCase):
         dct_hashes = [binary_array_to_int(my_hasher.dct_hash(img)[0]) for img in images]
         dcts = [my_hasher.dct_hash(img)[1] for img in images]
         # TODO: See what accounts for differences in hash computations
-        print("Comparison to ImageHash library")
+        print("Comparison to imagehash library")
         for i in range(len(images)):
             print(i)
             print("-" * 50)

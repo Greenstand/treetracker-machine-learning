@@ -44,20 +44,3 @@ class DataLoader():
     def put_hash(self, id, hash=0):
         return requests.put(self.url + id + "/hash/", json={"hash": hash})
 
-
-if __name__ == "__main__":
-    name = "bengal"
-    data_dir = os.path.join(os.path.dirname(os.getcwd()),"data", name)
-    loader = DataLoader(dir=data_dir, name=name, server_url="http://167.172.211.46:3007/captures/")
-    loader.retrieve_dataset(37.47144102360772, -3.261007479439057, 37.4713209331231, -3.2624149647584013, create_md=True)
-    # for d, s, f in os.walk(data_dir):
-    #     for file in f:
-    #         id = os.path.splitext(file)[0]
-    #         ret = loader.put_hash(id, hash=0)
-    #         print (ret)
-    # output =  loader.get_bounding_images(37.47144102360772, -3.261007479439057, 37.4703209331231, -3.2624149647584013).json()['data']
-    # print (output[0].keys())
-
-
-        # print (o['image_url'])
-    # "lat":"22.975806","lon":"88.453996","gps_accuracy":34,
