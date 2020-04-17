@@ -217,8 +217,16 @@ if __name__ == "__main__":
                 preprocess(im, size=200)
                 hash = hasher.average_hash(im)
                 hashes[os.path.split(fullpath)[1]] = binary_array_to_int(hash)
+    thresh = 10
+    for k in list(hashes.keys()):
+        args, hs = hamming_sort(hashes[k], hashes.values())
+        j = hs[hs == 0].shape[0]
+        if j > 1:
+            print ("Perfect matches for %s:"%k)
+            print (np.array(list(hashes.keys()))[args][:j])
 
-    args, hs = hamming_sort(hashes["107.jpg"], hashes.values())
-    j = hs[hs == 0].shape[0]
-    print ("Perfect matches:")
-    print (np.array(list(hashes.keys()))[args][:j])
+        j = hs[(hs > 0) & (hs < thresh)].shape[0]
+        if j > 1:
+            print ("Potential matches %d thresh for %s:"%(thresh, k))
+            print (np.array(list(hashes.keys()))[args][:j])
+
