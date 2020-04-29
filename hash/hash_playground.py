@@ -112,14 +112,16 @@ for skip in [1,2,4, 8]:
     pics = np.array(hsvs).reshape((6,7, rsz // skip, rsz // skip, 3))
     for i in range(pics.shape[0]):
         for j in range(pics.shape[1]):
-            thresh = np.median(pics[i,j,:,:,2]) - np.qua
-            thresh2 = 240
-            hsv_mask = np.where((pics[i, j, :, :, 2] < thresh) | (pics[i, j, :, :, 2] > thresh2))
             im = pics[i, j]
-            im[hsv_mask] = 0
-
+            low_val_thresh = np.percentile(pics[i,j, :, :, 2], 25, interpolation='midpoint')
+            high_val_thresh = np.percentile(pics[i,j, :, :, 2], 75, interpolation='midpoint')
+            val_mask = np.where((pics[i, j, :, :, 2] < low_val_thresh) | (pics[i, j, :, :, 2] > high_val_thresh))
+            low_hue_thresh = np.percentile(pics[i,j, :, :, 0], 25, interpolation='midpoint')
+            high_hue_thresh = np.percentile(pics[i,j, :, :, 0], 75, interpolation='midpoint')
+            hue_mask = np.where((pics[i, j, :, :, 0] < low_hue_thresh) | (pics[i, j, :, :, 0] > high_hue_thresh))
+            im[val_mask] = 0
+            im[hue_mask] = 0
             axarr[i,j].imshow(hsv_to_rgb(im)/ 255)
-    plt.suptitle("skip: %d, low_thresh: %d, high_thresh: %d"%(skip, thresh, thresh2))
     plt.show()
 
 # images = preprocess(images, size=rsz,ksize=ks)

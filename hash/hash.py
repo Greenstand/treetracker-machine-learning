@@ -1,6 +1,10 @@
 import cv2
 import numpy as np
 from scipy.fft import dctn
+import os
+from PIL import Image
+import matplotlib.pyplot as plt
+
 
 def hamming_sort(candidate_image_hash, compared_image_hashes):
     '''
@@ -203,8 +207,6 @@ class ImageHasher():
         return np.concatenate([histo > thresh, (resized > np.mean(resized)).flatten()])
 
 if __name__ == "__main__":
-    import os
-
     data_dir = os.path.join(os.path.dirname(os.getcwd()), "data", "kilema_tanzania")
     hasher = ImageHasher(8) # will create 28 bit hash
     print (data_dir)
@@ -215,18 +217,27 @@ if __name__ == "__main__":
             if os.path.splitext(fullpath)[1] == ".jpg":
                 im = cv2.imread(fullpath)
                 preprocess(im, size=200)
-                hash = hasher.average_hash(im)
+                hash = hasher.histo_avg_hash(im)
                 hashes[os.path.split(fullpath)[1]] = binary_array_to_int(hash)
-    thresh = 10
-    for k in list(hashes.keys()):
-        args, hs = hamming_sort(hashes[k], hashes.values())
-        j = hs[hs == 0].shape[0]
-        if j > 1:
-            print ("Perfect matches for %s:"%k)
-            print (np.array(list(hashes.keys()))[args][:j])
-
+    thresh = 15
+    keys = list(hashes.keys())
+    seens = dict(zip(keys, [False for _ in keys]))
+    for k in range(len(keys)):
+        root = keys[k]
+        args, hs = hamming_sort(hashes[root], hashes.values())
         j = hs[(hs > 0) & (hs < thresh)].shape[0]
         if j > 1:
-            print ("Potential matches %d thresh for %s:"%(thresh, k))
-            print (np.array(list(hashes.keys()))[args][:j])
+            # print ("Potential matches %d thresh for %s:"%(thresh, k))
+            matches = np.array(list(hashes.keys()))[args][:j]
+            print (root + " had %d matches"%(matches.shape[0]))
+            for m in matches[1:]:
+                seens[m] = True
+            if not seens[root]:
+                f, axarr = plt.subplots(1, len(matches), figsize=(20,20))
+                plt.suptitle(root + " approx matches, thresh=%d"%thresh)
+                for i in range(min(len(matches), 4)):
+                    fname = os.path.splitext(matches[i])[0]
+                    axarr[i].imshow(Image.open(os.path.join(data_dir, fname, matches[i])))
+                    axarr[i].set_title(matches[i] + " Distance:" + str(hs[i]))
+                plt.show()
 
