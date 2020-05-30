@@ -8,6 +8,7 @@ import numpy as np
 import imagehash
 import os
 from hash import *
+from sklearn.cluster import SpectralClustering
 
 
 homepath = os.getcwd()[:-4]
@@ -23,7 +24,10 @@ b = data.read_image_from_db(os.path.join(homepath, 'data/duplicates_db/'), key=k
 dups = [data.read_image_from_db(os.path.join(homepath, 'data/1573_duplicates/'), key=int(r)) for r in range(20)]
 
 images = [a, b] + dups + randoms
-
+clustering = SpectralClustering(n_clusters=2,
+                                assign_labels="discretize",
+                                random_state=0,
+                                eigen_solver="arpack")
 
 # known duplicates
 adjacency_matrix = np.identity(len(images)) * 2
@@ -100,30 +104,86 @@ def hash_algorithm_display(hasher, image_idx, images, hash_algo, verbose=False):
 
 
 rsz = 200
-ks = 3
+ks = 5
 
 
-for skip in [1,2,4, 8]:
+for skip in [4]:
     resizes = [cv2.resize(i, (rsz // skip, rsz // skip)) for i in images]
     blurs = [cv2.GaussianBlur(i, (ks, ks), 0) for i in resizes]
     hsvs = [rgb_to_hsv(a) for a in blurs]
+    orig = None
+    f, axarr = plt.subplots (6,7,figsize=(20,20))
+    pics = np.array(resizes).reshape((6,7, rsz // skip, rsz // skip, 3))
+    for i in range(pics.shape[0]):
+        for j in range(pics.shape[1]):
+            im = pics[i, j]
+            # print (d)
+            axarr[i,j].imshow(im)
+    plt.show()
 
+for skip in [4]:
+    resizes = [cv2.resize(i, (rsz // skip, rsz // skip)) for i in images]
+    blurs = [cv2.GaussianBlur(i, (ks, ks), 0) for i in resizes]
+    hsvs = [rgb_to_hsv(a) for a in blurs]
+    orig = None
     f, axarr = plt.subplots (6,7,figsize=(20,20))
     pics = np.array(hsvs).reshape((6,7, rsz // skip, rsz // skip, 3))
     for i in range(pics.shape[0]):
         for j in range(pics.shape[1]):
             im = pics[i, j]
-            low_val_thresh = np.percentile(pics[i,j, :, :, 2], 25, interpolation='midpoint')
-            high_val_thresh = np.percentile(pics[i,j, :, :, 2], 75, interpolation='midpoint')
+            low_val_thresh = np.percentile(pics[i,j, :, :, 2], 10, interpolation='midpoint')
+            high_val_thresh = np.percentile(pics[i,j, :, :, 2], 90, interpolation='midpoint')
             val_mask = np.where((pics[i, j, :, :, 2] < low_val_thresh) | (pics[i, j, :, :, 2] > high_val_thresh))
-            low_hue_thresh = np.percentile(pics[i,j, :, :, 0], 25, interpolation='midpoint')
-            high_hue_thresh = np.percentile(pics[i,j, :, :, 0], 75, interpolation='midpoint')
+            low_hue_thresh = np.percentile(pics[i,j, :, :, 0], 20, interpolation='midpoint')
+            high_hue_thresh = np.percentile(pics[i,j, :, :, 0], 80, interpolation='midpoint')
             hue_mask = np.where((pics[i, j, :, :, 0] < low_hue_thresh) | (pics[i, j, :, :, 0] > high_hue_thresh))
             im[val_mask] = 0
             im[hue_mask] = 0
-            axarr[i,j].imshow(hsv_to_rgb(im)/ 255)
+            im [im < 0] = 0
+            if im[:,:, 0].any() < 0:
+                print (im[:, :, 0])
+            f = np.bincount((im[:, :, 0].ravel() * 180).astype(np.uint8))
+            binstart = np.min((im[:, :, 0].ravel() * 180).astype(np.uint8))
+            assert binstart == 0 # they should all start at 0
+            if i == 0 and j == 0:
+                orig = f
+            d = np.round(chi_squared_distance(orig, f), 2)
+            # print (d)
+            axarr[i, j].bar(list(range(binstart, binstart + len(f))), f)
+            axarr[i, j].set_title("X^2 Distance from Orig: %d"%d)
     plt.show()
 
+
+for skip in [4]:
+    resizes = [cv2.resize(i, (rsz // skip, rsz // skip)) for i in images]
+    blurs = [cv2.GaussianBlur(i, (ks, ks), 0) for i in resizes]
+    hsvs = [rgb_to_hsv(a) for a in blurs]
+    orig = None
+    plt.suptitle("Clustering")
+    f, axarr = plt.subplots (6,7,figsize=(20,20))
+    pics = np.array(hsvs).reshape((6,7, rsz // skip, rsz // skip, 3))
+    for i in range(pics.shape[0]):
+        for j in range(pics.shape[1]):
+            im = pics[i, j]
+            low_val_thresh = np.percentile(pics[i,j, :, :, 2], 10, interpolation='midpoint')
+            high_val_thresh = np.percentile(pics[i,j, :, :, 2], 90, interpolation='midpoint')
+            val_mask = np.where((pics[i, j, :, :, 2] < low_val_thresh) | (pics[i, j, :, :, 2] > high_val_thresh))
+            low_hue_thresh = np.percentile(pics[i,j, :, :, 0], 20, interpolation='midpoint')
+            high_hue_thresh = np.percentile(pics[i,j, :, :, 0], 80, interpolation='midpoint')
+            hue_mask = np.where((pics[i, j, :, :, 0] < low_hue_thresh) | (pics[i, j, :, :, 0] > high_hue_thresh))
+            im[val_mask] = 0
+            im[hue_mask] = 0
+            im [im < 0] = 0
+            xx, yy = np.meshgrid(np.arange(im.shape[1]), np.arange(im.shape[0]))
+            xx = xx[..., np.newaxis]
+            yy = yy[..., np.newaxis]
+            stack = np.concatenate([im, xx, yy], axis=2)
+            clusters = clustering.fit_predict(stack.reshape(-1, stack.shape[-1]))
+            print ("clustering pic %d"%(i * pics.shape[1] + j))
+            cluster_im = clusters.reshape(stack.shape[0], stack.shape[1])
+            axarr[i, j].imshow(cluster_im)
+
+    plt.show()
 # images = preprocess(images, size=rsz,ksize=ks)
 # pics = np.array(images).reshape((6,7, rsz, rsz))
 # f, axarr = plt.subplots (6,7,figsize=(20,20))

@@ -5,6 +5,21 @@ import os
 from PIL import Image
 import matplotlib.pyplot as plt
 
+def chi_squared_distance(h1, h2, eps=1e-8):
+    '''
+    Returns the chi-squared distance between two histograms, as defined by Li and Jain in the
+    Handbook of Face Recognition. If the two histograms aren't of the same shape, zeros are added
+    to the shortest one. Thus, each histogram should share the same first bin.
+    :param h1: (np.array) comparison histogram
+    :param h2: (np.array) candidate histogram
+    :param eps: (float) small factor to prevent numerical overflow in case of 0/0
+    :return: (float) chi-squared distance between h1 and h2
+    '''
+    if h1.shape[0] < h2.shape[0]:
+        h1 = np.concatenate([h1, np.zeros(shape=h2.shape[0] - h1.shape[0])])
+    elif h2.shape[0] < h1.shape[0]:
+        h2 = np.concatenate([h2, np.zeros(shape=h1.shape[0] - h2.shape[0])])
+    return np.sum(np.divide(np.square(h1 - h2), (h1 + h2 + eps)))
 
 def hamming_sort(candidate_image_hash, compared_image_hashes):
     '''
@@ -225,7 +240,7 @@ if __name__ == "__main__":
     for k in range(len(keys)):
         root = keys[k]
         args, hs = hamming_sort(hashes[root], hashes.values())
-        j = hs[(hs > 0) & (hs < thresh)].shape[0]
+        j = hs[(hs >= 0) & (hs < thresh)].shape[0]
         if j > 1:
             # print ("Potential matches %d thresh for %s:"%(thresh, k))
             matches = np.array(list(hashes.keys()))[args][:j]
@@ -234,10 +249,10 @@ if __name__ == "__main__":
                 seens[m] = True
             if not seens[root]:
                 f, axarr = plt.subplots(1, len(matches), figsize=(20,20))
-                plt.suptitle(root + " approx matches, thresh=%d"%thresh)
+                plt.suptitle(root + " approx matches, thresh=%d"%thresh, fontsize=32, fontweight="bold")
                 for i in range(min(len(matches), 4)):
                     fname = os.path.splitext(matches[i])[0]
                     axarr[i].imshow(Image.open(os.path.join(data_dir, fname, matches[i])))
-                    axarr[i].set_title(matches[i] + " Distance:" + str(hs[i]))
+                    axarr[i].set_title(matches[i] + " Distance:" + str(hs[i]), fontsize=24, fontweight="bold")
                 plt.show()
 

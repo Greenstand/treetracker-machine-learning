@@ -61,14 +61,15 @@ if __name__=="__main__":
         for j in range(0,4):
             fourier = np.fft.fft2(grayscale(randoms[4 * i + j]), axes=(0,1))
             mask = np.zeros_like(fourier)
-            k = 100
-            mask[0:k, 0:k] = 1
+            k = 0
+            mask[k:, k:] = 1
+            fourier = np.abs(np.multiply (mask, fourier)) * 100
+            axarr[i,j].hist(fourier.flatten(), bins=10)
+            # fourier = np.fft.ifft2(np.multiply(fourier, mask))
+            # var = np.var(fourier)
+            # axarr[i, j].set_title(f"{var:.2E}")
 
-            fourier = np.fft.ifft2(np.multiply(fourier, mask))
-            var = np.var(fourier)
-            axarr[i, j].set_title(f"{var:.2E}")
-
-            r = axarr[i, j].imshow((np.abs(fourier)).astype(np.int), cmap="gray")
+            # r = axarr[i, j].imshow((np.abs(fourier)).astype(np.int), cmap="gray")
             # axarr[i, j].imshow(cv2.GaussianBlur(grayscale(randoms[4 * i + j]), (3,3), sigmaX=0), cmap='gray')
     plt.show()
     # f, axarr = plt.subplots(5,4, figsize=(20,20))
