@@ -1,5 +1,6 @@
 import cv2
 import os
+from scipy.stats import skew, kurtosis
 import numpy as np
 from data.data_management import *
 import matplotlib.pyplot as plt
@@ -19,7 +20,7 @@ class BlurDetection ():
         :return:
         '''
 
-        return cv2.Laplacian(grayscale(img), cv2.CV_64F).var() / np.prod(img.shape)
+        return cv2.Laplacian(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY), cv2.CV_64F).var() / np.prod(img.shape)
 
     def fft_filter(self, img, bw):
         '''
@@ -37,9 +38,26 @@ class BlurDetection ():
         return np.fft.ifft2(freq)
 
 
+    def max_laplacian(self, img):
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        return np.max(cv2.convertScaleAbs(cv2.Laplacian(gray, 3)))
 
 def grayscale(img):
+    """
+    shorthand way to convert to grayscale
+    :param img:
+    :return:
+    """
     return img.dot([0.07, 0.72, 0.21])
+
+def entropy_pp(img):
+    """
+    per pixel entropy of a histogram
+    :param img: grayscale image to analyze
+    :return:
+    """
+    hist = np.histogram(img.flatten(), bins=np.arange(0,255), density=True)
+    return -(hist[0] * np.log(np.abs(hist[0]) + 1e-8)).sum()
 
 
 if __name__=="__main__":
@@ -49,34 +67,37 @@ if __name__=="__main__":
     randoms = [data.read_image_from_db(os.path.join(homepath, 'data/random_zeroone_percent_db/'), key=int(r)) for r in
                random_ids] # len 20
     f, axarr = plt.subplots(5,4, figsize=(20,20))
+    for i in range(0,5):
+        for j in range(0,4):
+            gray = cv2.cvtColor(randoms[4  * i + j], cv2.COLOR_BGR2GRAY)
+            entropy = entropy_pp(gray)
+            axarr[i, j].set_title(f"{entropy:.2E}", fontsize=20)
+            s = cv2.convertScaleAbs(gray)
+            axarr[i, j].imshow(s, cmap="gray")
+    plt.show()
+
+    f, axarr = plt.subplots(5,4, figsize=(20,20))
     blurrer = BlurDetection(100)
     for i in range(0,5):
         for j in range(0,4):
-            var = blurrer.log_var(randoms[4 * i + j]) # 0.01 seems like a fair threshold for this: over this variance is
-            axarr[i, j].set_title(f"{var:.2E}")
-            axarr[i, j].imshow(grayscale(randoms[4  * i + j]), cmap="gray")
+            var = np.round(blurrer.log_var(randoms[4 * i + j]), 3) # 0.01 seems like a fair threshold for this: over this variance is
+            s = cv2.convertScaleAbs(cv2.Laplacian(cv2.cvtColor(randoms[4  * i + j], cv2.COLOR_BGR2GRAY), 3)).flatten()
+            counts, bars, patches = axarr[i, j].hist(s, bins=np.arange(0,256), density=True)
+            sk = np.round(skew(counts), 2)
+            kr = np.round(kurtosis(counts), 2)
+            axarr[i, j].set_title(f"ppvar: {var}, kurtosis: {kr}", fontsize=20)
+    plt.suptitle("Laplacian Statistics", fontsize=24)
     plt.show()
     f, axarr = plt.subplots(5,4, figsize=(20,20))
     for i in range(0,5):
         for j in range(0,4):
-            fourier = np.fft.fft2(grayscale(randoms[4 * i + j]), axes=(0,1))
-            mask = np.zeros_like(fourier)
-            k = 0
-            mask[k:, k:] = 1
-            fourier = np.abs(np.multiply (mask, fourier)) * 100
-            axarr[i,j].hist(fourier.flatten(), bins=10)
-            # fourier = np.fft.ifft2(np.multiply(fourier, mask))
-            # var = np.var(fourier)
-            # axarr[i, j].set_title(f"{var:.2E}")
-
-            # r = axarr[i, j].imshow((np.abs(fourier)).astype(np.int), cmap="gray")
-            # axarr[i, j].imshow(cv2.GaussianBlur(grayscale(randoms[4 * i + j]), (3,3), sigmaX=0), cmap='gray')
+            gray = cv2.cvtColor(randoms[4  * i + j], cv2.COLOR_BGR2GRAY)
+            entropy = entropy_pp(gray)
+            s = cv2.convertScaleAbs(gray).flatten()
+            counts, bars, patches = axarr[i, j].hist(s, bins=np.arange(0,256), density=True)
+            sk = np.round(skew(counts), 2)
+            kr = np.round(kurtosis(counts), 2)
+            axarr[i, j].set_title(f"skew: {sk}, kurtosis: {kr} ", fontsize=20)
+    plt.suptitle("Grayscale Statistics", fontsize=24)
     plt.show()
-    # f, axarr = plt.subplots(5,4, figsize=(20,20))
 
-    # for i in range(0,5):
-    #     for j in range(0,4):
-    #         imgfft = blurrer.fft_filter(randoms[4 * i + j], 200)
-    #         axarr[i, j].imshow(np.real(imgfft), cmap='gray')
-    #
-    # plt.show()
