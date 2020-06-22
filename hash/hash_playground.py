@@ -11,6 +11,9 @@ from hash import *
 from sklearn.cluster import SpectralClustering
 
 
+# This file is meant as a place to try out ideas on the fly. None of this is
+# ready to be put into production of any kind.
+
 homepath = os.getcwd()[:-4]
 # to 93457 to 93481 duplicates
 data = GreenstandDataset('nov11data.csv')

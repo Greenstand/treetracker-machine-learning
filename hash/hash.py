@@ -68,8 +68,7 @@ def preprocess(images, size, interp=cv2.INTER_AREA, ksize=3):
 
     for img in images:
         col = cv2.cvtColor(np.uint8(cv2.normalize(img, None, 0, 255, cv2.NORM_MINMAX)) , cv2.COLOR_BGR2GRAY)
-        blur = cv2.GaussianBlur(col, (ksize,ksize), 0)
-        resized = cv2.resize(blur, (size,size), interpolation=interp)
+        resized = cv2.resize(col, (size,size), interpolation=interp)
         ret.append(cv2.equalizeHist(resized))
     return ret
 
@@ -90,46 +89,6 @@ def print_groups(adj):
             unaccounteds.remove(val)
     return clusters
 
-def hash_accuracy(index, adj, hashes_by_index, hammings):
-    """
-    A heuristic to decide whether a hashing algorithm is working.
-    We want all sorted hashes of the same image to be together and all others to be far.
-    :param index: the index that is used to compute relative similarity
-    :param adj: adjacency matrix to decide which images are actually duplicates
-    :param hashes_by_index: the sorted indices of most similarity to teh queried index
-    :param hammings: the corresponding Hamming distances to hashes_by_index
-    :return:
-    """
-    error = 0 # the average hamming distance after the first misclassified
-    correct = 0
-    normalized_hd = np.array(hammings) / np.max(hammings) # allows even comparison of hashes with different ranges
-    if hashes_by_index[0] != index:
-        print ("Same image does not show minimal hash!")
-        return np.infty
-
-    duplicates = np.flatnonzero(adj[index,:])
-    thresh = -1
-    for j in range(len(hashes_by_index)):
-        if hashes_by_index[j] in duplicates and thresh == -1:
-            correct += 1
-        elif thresh == -1 and not hashes_by_index[j] in duplicates:
-            # the first occurrence of a non-adjacent image in the sorted hashes
-            thresh = j
-        elif thresh != -1 and hashes_by_index[j] in duplicates:
-            # penalize an actual duplicate coming after the first non-adjacent(nonduplicate)
-            # image
-            mistake_bound = j - thresh / len(hashes_by_index) # how far off first misclassification we are
-            error += mistake_bound * normalized_hd[j]
-            # this promotes small hamming distance in case the set of
-            # all images compared are similar to begin with.
-            # consider one similar nonduplicate coming before a tougher
-            # duplicate
-        else:
-            pass # do nothing for unrelated images
-
-    # correct = thresh
-    return correct, error
-
 
 
 class ImageHasher():
@@ -138,16 +97,16 @@ class ImageHasher():
     Greenstand purposes.
     See https://github.com/JohannesBuchner/imagehash for the open-source implementation.
     """
-    def __init__(self, hash_size, ):
+    def __init__(self, hash_size):
         self.size = hash_size
 
 
 
     def average_hash(self, img):
         '''
-        Averge hashing implementation to return hash of bits greater than average of
+        Average hashing implementation to return hash of bits greater than average of
         pixel intensities.
-        :param img: (np.ndarray) the RGB image to find a difference hash function of
+        :param img: (np.ndarray) the grayscale image to find a difference hash function of
         :return:
         '''
         resized = cv2.resize(img, (self.size, self.size), interpolation=cv2.INTER_AREA)
@@ -158,7 +117,7 @@ class ImageHasher():
         Credit to https://www.pyimagesearch.com/2017/11/27/image-hashing-opencv-python/
         for implementation tutorial.
 
-        :param img: (np.ndarray) the RGB image to find a difference hash function from
+        :param img: (np.ndarray) the grayscale image to find a difference hash function from
         :param hash_size: (int) the number of bits in the hash (ex. setting to 8 yields 2**8=64 bit address)
         :return: (int) 2 ** hash_size bit image hash function returned as int (not hex or binary)
         '''
@@ -168,7 +127,7 @@ class ImageHasher():
 
     def dct_hash(self, img, blur_dim=7):
         '''
-        :param img: (np.ndarray) the RGB image to find a difference hash function of
+        :param img: (np.ndarray) the grayscale image to find a difference hash function of
         :param hash_size: (int) the number of bits in the hash (ex. setting to 8 yields 2**8=64 bit address)
         :param blur_dim(int) size of square mean-filter
         :return: (tuple(np.ndarray, np.ndarray)) 2 ** hash_size bit image hash binary array and DCT matrix output
@@ -179,19 +138,6 @@ class ImageHasher():
         tr_matx = dct_matx[:self.size,:self.size].flatten()# original algorithm selects top 8x8=64
         return tr_matx > np.median(tr_matx), dct_matx
 
-
-
-    def marr_hildreth_hash(self, img, std=3, ksize=3):
-        '''
-        TODO: Edge-detector based hash
-        :param img:
-        :param std:
-        :param ksize:
-        :return:
-        '''
-        resized = cv2.resize(cv2.cvtColor(img, cv2.COLOR_RGB2GRAY), (self.size, self.size), interpolation=cv2.INTER_AREA)
-        img = cv2.Laplacian(cv2.GaussianBlur(img, (std,std), 0), kernel_size=ksize)
-        # TODO: Finish marr hildreth edge-based hash if others don't work
 
 
     def histo_hash(self, img, nbins=64, filter_size=5):

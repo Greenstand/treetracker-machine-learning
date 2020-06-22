@@ -3,7 +3,9 @@ import imagehash
 import numpy as np
 import time
 import imagehash
+import cv2
 from PIL import Image
+import matplotlib.pyplot as plt
 
 from hash.hash import hamming_distance, binary_array_to_int, preprocess, ImageHasher
 
@@ -92,6 +94,68 @@ class CorrectHamming(unittest.TestCase):
         print(a_fake_hash)
         print(b_hash)
         print(a_hash - b_hash)
+
+    def test_transformations(self):
+        # Linear pixel intensity transformations (ex. brightness) is handled
+        n = 100
+        f, axarr = plt.subplots (3, figsize=(20,20))
+        ims = [np.random.uniform(0, 1, (200,200,3)) for j in range (n)]
+        hasher = ImageHasher(8)
+        original_hashes = [binary_array_to_int(hasher.average_hash(im)) for im in ims]
+        vars = [1e-2, 1e-1, 1, 5, 10, 100]
+        avg_dists = []
+        for var in vars:
+            dists = []
+            for j in range(len(ims)):
+                varim = ims[j] + np.random.normal(0, scale=var, size=ims[j].shape)
+                varim_hash = binary_array_to_int(hasher.average_hash(varim))
+                dists.append(hamming_distance(original_hashes[j], varim_hash))
+            avg_dists.append(np.mean(dists))
+        axarr[0].grid()
+        axarr[0].plot(vars, avg_dists, linewidth=5)
+        axarr[0].set_xlabel("Variance of Gaussian Noise", fontsize=18)
+        axarr[0].set_ylabel("Average Hamming Distance of %d Random Images"%n, fontsize=18)
+        axarr[0].set_title("Hamming distance by Gaussian noise variance", fontsize=18)
+
+        scales = [0.125, 0.25, 0.5, 0.75, 1,  1.5, 2, 4, 8]
+        avg_dists = []
+        for scale in scales:
+            dists = []
+            for j in range(len(ims)):
+                scaleim = cv2.resize(ims[j], (int(scale * ims[j].shape[0]), int(scale * ims[j].shape[1])))
+                scale_hash = binary_array_to_int(hasher.average_hash(scaleim))
+                dists.append(hamming_distance(original_hashes[j], scale_hash))
+            avg_dists.append(np.mean(dists))
+        axarr[1].grid()
+        axarr[1].plot(scales, avg_dists, linewidth=5)
+        axarr[1].set_xlabel("Scale factor", fontsize=18)
+        axarr[1].set_ylabel("Hamming Distance of %d Random Images"%n, fontsize=18)
+        axarr[1].set_title("Hamming distance by scale", fontsize=18)
+
+        def rotate_image(image, angle):
+            # source: https://stackoverflow.com/questions/9041681/opencv-python-rotate-image-by-x-degrees-around-specific-point
+            image_center = tuple(np.array(image.shape[1::-1]) / 2)
+            rot_mat = cv2.getRotationMatrix2D(image_center, angle, 1.0)
+            result = cv2.warpAffine(image, rot_mat, image.shape[1::-1], flags=cv2.INTER_LINEAR)
+            return result
+
+        thetas = np.arange(0, 181, 10)
+        avg_dists = []
+        for theta in thetas:
+            dists = []
+            for j in range(len(ims)):
+                rotim = rotate_image(ims[j], theta)
+                rot_hash = binary_array_to_int(hasher.average_hash(rotim))
+                dists.append(hamming_distance(original_hashes[j], rot_hash))
+            avg_dists.append(np.mean(dists))
+        axarr[2].grid()
+        axarr[2].plot(thetas, avg_dists, linewidth=5)
+        axarr[2].set_xlabel("Rotation Angle (degree)", fontsize=18)
+        axarr[2].set_ylabel("Average Hamming Distance of %d Random Images"%n, fontsize=18)
+        axarr[2].set_title("Hamming distance by Rotation", fontsize=18)
+        plt.show()
+
+
 
 
 if __name__ == "__main__":
