@@ -4,8 +4,11 @@ from scipy.stats import skew, kurtosis
 import numpy as np
 from data.data_management import *
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+from mpl_toolkits.mplot3d import proj3d
 from matplotlib import colors
-
+from tools.viz import image_gallery
+from sklearn.cluster import dbscan
 
 
 class BlurDetection ():
@@ -25,6 +28,15 @@ class BlurDetection ():
         lapl = cv2.Laplacian(img, cv2.CV_64F)
         return lapl.var() / np.prod(img.shape), np.max(lapl)
 
+    def brenner_focus(self, img):
+        if img.ndim > 2:
+            print ("Stats measured in grayscale, converting image to grayscale")
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        dx = img[1:, :] - img [:-1, :]
+        dy = img [:, 1:] - img[:, :-1]
+        avg_of_max = np.mean([np.max(dx **2), np.max(dy **2)])
+        return avg_of_max
+
     def fft_filter(self, img, bw):
         '''
         Low pass filter using 2D FFT
@@ -41,11 +53,13 @@ class BlurDetection ():
         return np.fft.ifft2(freq)
 
 
-    def max_laplacian(self, img):
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        return np.max(cv2.convertScaleAbs(cv2.Laplacian(gray, 3)))
 
     def hist_stats(self, img):
+        '''
+        Returns the skew and kurtosis of the grayscale image
+        :param img: image to process
+        :return: tuple (float, float) of skew and kurtosis respectively
+        '''
         if img.ndim > 2:
             print ("Histogram stats measured in grayscale, converting image to grayscale")
             img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -67,81 +81,87 @@ class BlurDetection ():
         return -(hist[0] * np.log(np.abs(hist[0]) + 1e-8)).sum()
 
 
-if __name__=="__main__":
-    homepath = os.getcwd()[:-4]
-    data = GreenstandDataset('nov11data.csv')
-    random_ids = np.loadtxt(os.path.join(homepath, "data/onepercentids.txt"))
-    randoms = [data.read_image_from_db(os.path.join(homepath, 'data/random_zeroone_percent_db/'), key=int(r)) for r in
-               random_ids] # len 20
+def viz_blur_stats(images, ids, threshs=None):
+    """
+    Scatter plot of blurring statistics (Laplacian variance, Laplacian max, and Brenner focus)
+
+    """
+    f = plt.figure()
+    ax = f.add_subplot(111, projection='3d')
+    ax.set_xlabel("var")
+    ax.set_ylabel("max")
+    ax.set_zlabel("brenner focus")
     blurrer = BlurDetection()
-    vars = []
-    maxes = []
-    f, axarr = plt.subplots(5, 4, figsize=(20, 20))
-    for i in range(0, 5):
-        for j in range(0, 4):
-            axarr[i, j].set_title(int(random_ids[4 * i + j]))
-            axarr[i, j].imshow(randoms[4 * i + j], cmap="Reds")
-    plt.show()
-
-    f, ax = plt.subplots()
-    ax.grid()
-    ax.set_title("Max by Variance Laplacian")
-    ax.set_xlabel("Variance")
-    ax.set_ylabel("Max")
-    for i in range(5):
-        for j in range(4):
-            var, max = blurrer.lp_variance_max(randoms[4 * i + j])# 0.01 seems like a fair threshold for this: over this variance is
-            name = random_ids[4 * i + j]
-            ax.scatter(var, max)
-            ax.annotate(int(name), (var, max))
-    plt.show()
-    exit()
-    f, axarr = plt.subplots(5,4, figsize=(25,25))
-    for i in range(0,5):
-        for j in range(0,4):
-            var, max = np.round(blurrer.lp_variance_max(randoms[4 * i + j]), 3) # 0.01 seems like a fair threshold for this: over this variance is
-            s = cv2.convertScaleAbs(cv2.Laplacian(cv2.cvtColor(randoms[4  * i + j], cv2.COLOR_BGR2GRAY), 3)).flatten()
-            counts, bars, patches = axarr[i, j].hist(s, bins=np.arange(0,256), density=True)
-            sk = np.round(skew(counts), 2)
-            kr = np.round(kurtosis(counts), 2)
-            axarr[i, j].set_title(f"ppvar: {var}, kurtosis: {kr}", fontsize=20)
-            # We'll color code by height, but you could use any scalar
-            fracs = counts / counts.max()
-            # we need to normalize the data to 0..1 for the full range of the colormap
-            norm = colors.Normalize(fracs.min(), fracs.max())
-            if np.abs(kr) <= 10:
-                cm = plt.cm.Greens
+    for i in range(len(images)):
+        var, maxz = blurrer.lp_variance_max(images[i])
+        fox = blurrer.brenner_focus(images[i])
+        if threshs:
+            if var > threshs[0] or maxz > threshs[1] or fox < threshs[2]:
+                cc = "red"
+                alpha = 0.8
             else:
-                cm = plt.cm.Reds
-            # Now, we'll loop through our objects and set the color of each accordingly
-            for thisfrac, thispatch in zip(fracs, patches):
-                color =cm(thisfrac)
-                thispatch.set_facecolor(color)
+                cc = "green"
+                alpha = 0.3
+        else:
+            cc = "green"
+            alpha = 0.3
 
-    plt.suptitle("Laplacian Statistics", fontsize=24)
+        ax.scatter(var, maxz, fox, c=cc, alpha=alpha)
+        ax.text(var, maxz, fox, ids[i], size=8, zorder=1, color='k')
     plt.show()
-    f, axarr = plt.subplots(5,4, figsize=(25,25))
-    for i in range(0,5):
-        for j in range(0,4):
-            gray = cv2.cvtColor(randoms[4  * i + j], cv2.COLOR_BGR2GRAY)
-            entropy = blurrer.entropy_pp(gray)
-            s = cv2.convertScaleAbs(gray).flatten()
-            counts, bars, patches = axarr[i, j].hist(s, bins=np.arange(0,256), density=True)
-            sk = np.round(skew(counts), 2)
-            kr = np.round(kurtosis(counts), 2)
-            axarr[i, j].set_title(f"skew: {sk}, kurtosis: {kr} ", fontsize=20)
-            fracs = counts / counts.max()
-            # we need to normalize the data to 0..1 for the full range of the colormap
-            norm = colors.Normalize(fracs.min(), fracs.max())
-            if np.abs(kr) <= 5:
-                cm = plt.cm.Greens
-            else:
-                cm = plt.cm.Reds
-            # Now, we'll loop through our objects and set the color of each accordingly
-            for thisfrac, thispatch in zip(fracs, patches):
-                color =cm(thisfrac)
-                thispatch.set_facecolor(color)
 
-    plt.suptitle("Grayscale Statistics", fontsize=24)
-    plt.show()
+
+def generate_stats(images, ids, viz=True):
+    blurrer = BlurDetection()
+    stats = {}
+    for j in range(len(images)):
+        im = images[j]
+        gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
+        var, max = np.round(blurrer.lp_variance_max(gray),3)
+        entropy = blurrer.entropy_pp(gray)
+        s = cv2.convertScaleAbs(gray).flatten()
+        counts, bars = np.histogram(s, bins=np.arange(0, 256), density=True)
+        sk = np.round(skew(counts), 3)
+        kr = np.round(kurtosis(counts), 3)
+        s = cv2.convertScaleAbs(cv2.Laplacian(cv2.cvtColor(im, cv2.COLOR_BGR2GRAY), 3)).flatten()
+        counts, bars = np.histogram(s, bins=np.arange(0, 256), density=True)
+        lask = np.round(skew(counts), 3)
+        lakr = np.round(kurtosis(counts), 3)
+        stats[ids[j]] = (var, max, entropy, sk, kr, lask, lakr)
+    stats = pd.DataFrame(stats).T
+    stats.columns = ["laplace_var_pp", "laplace_max", "entropy_pp", "gray_skew", "gray_kurt","laplace_skew", "laplace_kurt"]
+    if viz:
+        f, axarr = plt.subplots(len(stats.columns), figsize=(20,10))
+        for c in range(len(stats.columns)):
+            axarr[c].boxplot(stats.iloc[:,c], vert=False)
+            axarr[c].set_title(stats.columns[c])
+        plt.show()
+    return stats
+
+if __name__=="__main__":
+    # homepath = os.getcwd()[:-4]
+    # data = GreenstandDataset('nov11data.csv')
+    # random_ids = np.loadtxt(os.path.join(homepath, "data/onepercentids.txt"))
+    # images = [data.read_image_from_db(os.path.join(homepath, 'data/random_zeroone_percent_db/'), key=int(r)) for r in
+    #            random_ids] # len 20
+    # titles = [int(idd) for idd in random_ids]
+    images = []
+    titles = []
+    for data_dir in ["kilema_tanzania"]:
+        dd = os.path.join(os.path.dirname(os.getcwd()), "data", data_dir)
+        extensions = [".jpg", ".png"]
+        for f, _, d in os.walk(dd):
+            for fil in d:
+                fullpath = os.path.join(f, fil)
+                if os.path.splitext(fullpath)[1] in extensions:
+                    im = cv2.imread(fullpath)
+                    images.append(im)
+                    titles.append(fil)
+
+
+    blurrer = BlurDetection()
+    image_gallery(images, titles)
+    viz_blur_stats(images, titles, threshs=[0.05, 1200, 240])
+    stats = generate_stats(images, titles)
+
 
