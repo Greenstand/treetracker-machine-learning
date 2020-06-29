@@ -21,7 +21,7 @@ def image_gallery(images, titles=None):
     p = int(np.ceil(np.sqrt(N)))
     if p * q < N:
         q = p
-    f, axarr = plt.subplots(p, q, figsize=(N//2, N//2))
+    f, axarr = plt.subplots(p, q, figsize=(2 * N//3, 2 * N //3))
     for i in range(0, p):
         for j in range(0, q):
             idx = q * i + j
