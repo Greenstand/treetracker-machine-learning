@@ -5,5 +5,7 @@ This private repository contains code for Greenstand's image analysis processes.
 - automated species tagging
 - automated plant disease identification
 
-Progress on these issues will be tracked in the Projects section of the repository.
+Progress on these are tracked in the Projects section of the repository; if contributing, please add new projects or add notes to existing ones. If bugs in code or processes are found, please open an issue and/or notify someone via Slack. 
+
+
 Find out more about Greenstand at https://greenstand.org/home, or contact Shubhom (shubhom.bhattacharya@greenstand.org) for questions or concerns. 
