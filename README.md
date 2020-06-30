@@ -1,26 +1,9 @@
-## Duplicate Image Detection 
-Detect duplicate images in a large dataset of planted trees. 
+This private repository contains code for Greenstand's image analysis processes. Here are a few broad goals we are currently working on or hope to achieve in the future:
+- duplicate image detection
+- tree growth/update tracking
+- image quality analysis (visibility)
+- automated species tagging
+- automated plant disease identification
 
-### Current Tasks: 
-- compare image hashing algorithms on larger image set
-- compare feature-detection based methods 
-
-## Image Update Detection   
-Identify the same tree over its lifespan. 
-
-### Current Tasks: 
-- how to incorporate geographic knowledge, species/taxonomic/ecological id
-- 
-
-## Image Blurring Detection
-Make sure submitted images are identifiable
-
-### Current Tasks: 
-- Determine LoG variance/max thresholds
-- Research localized methods (i.e. after background subtraction, SVD denoising?)
-
-
-
-
-
-Find out more about Greenstand at https://greenstand.org/home
+Progress on these issues will be tracked in the Projects section of the repository.
+Find out more about Greenstand at https://greenstand.org/home, or contact Shubhom (shubhom.bhattacharya@greenstand.org) for questions or concerns. 
