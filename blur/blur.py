@@ -134,31 +134,34 @@ def generate_stats(images, ids, viz=True):
     return stats
 
 if __name__=="__main__":
-    homepath = os.getcwd()[:-4]
-    data = GreenstandDataset('nov11data.csv')
-    random_ids = np.loadtxt(os.path.join(homepath, "data/onepercentids.txt"))
-    images = [data.read_image_from_db(os.path.join(homepath, 'data/random_zeroone_percent_db/'), key=int(r)) for r in
-               random_ids] # len 20
-    titles = [int(idd) for idd in random_ids]
-    # images = []
-    # titles = []
-    # for data_dir in [""]:
-    #     dd = os.path.join(os.path.dirname(os.getcwd()), "data", data_dir)
-    #     extensions = [".jpg", ".png"]
-    #     for f, _, d in os.walk(dd):
-    #         for fil in d:
-    #             fullpath = os.path.join(f, fil)
-    #             if os.path.splitext(fullpath)[1] in extensions:
-    #                 im = cv2.imread(fullpath)
-    #                 images.append(im)
-    #                 titles.append(fil)
+    # homepath = os.getcwd()[:-4]
+    # data = GreenstandDataset('nov11data.csv')
+    # random_ids = np.loadtxt(os.path.join(homepath, "data/onepercentids.txt"))
+    # images = [data.read_image_from_db(os.path.join(homepath, 'data/random_zeroone_percent_db/'), key=int(r)) for r in
+    #            random_ids] # len 20
+    # titles = [int(idd) for idd in random_ids]
+    images = []
+    titles = []
+    for data_dir in ["kilema_tanzania"]:
+        dd = os.path.join(os.path.dirname(os.getcwd()), "data", data_dir)
+        extensions = [".jpg", ".png"]
+        for f, _, d in os.walk(dd):
+            for fil in d:
+                fullpath = os.path.join(f, fil)
+                if os.path.splitext(fullpath)[1] in extensions:
+                    im = cv2.imread(fullpath)
+                    images.append(im)
+                    titles.append(fil)
 
-    threshs = [0.05, 1000, 10000] # variance max, max min, focus min
+    threshs = [0.1, 1000, 5000] # variance max, max min, focus min
+
+    # The thresholds [0.1, 1000, 5000] produce reasonable results. In particular, <0.1 is a "good quality" resolution, 0.1-0.5 seems "ok quality",
+    # and greater than that seems a lot
     image_gallery(images, titles)
     viz_blur_stats(images, titles, threshs=threshs)
     stats = generate_stats(images, titles, viz=False)
     # gray excess kurtosis > 3 indicates lighting/shade
-    shades = stats[(stats['gray_kurt'] > 3)]
+    shades = stats[(stats['gray_kurt'] > 3)]["gray_kurt"]
     blurs = stats[(stats['laplace_var_pp'] > threshs[0]) | (stats['brenner_foc'] < threshs[2])]
     print ("Shading Problems:")
     print (shades)
@@ -166,7 +169,3 @@ if __name__=="__main__":
     print (blurs)
 
 
-    ints = ["laplace_var_pp", "laplace_max", "brenner_foc"]
-    for i in range(len(ints)):
-        print (ints[i])
-        print (stats.sort_values(by=ints[i]))
