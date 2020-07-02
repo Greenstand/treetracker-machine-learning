@@ -1,5 +1,6 @@
 import argparse
 import api.dataloader as DL
+import time
 
 ''' 
 CLI-interface for data download. Usage like: 
@@ -18,6 +19,8 @@ if __name__ == "__main__":
     parser.add_argument('-coordinates', '--coords', nargs=4, help='<Required> Lat-Long bounding box', type=float)
     args = parser.parse_args()
     loader = DL.DataLoader(dir=args.data_dir, name=args.name, server_url="http://167.172.211.46:3007/captures/")
+    t = time.time()
     loader.retrieve_dataset(args.coords[0], args.coords[1], args.coords[2], args.coords[3],
                             create_md=True)
-    print ("Complete!")
+    time_elapsed = time.time() - t
+    print ("Data stored in %s; finished in  %s seconds"%(args.data_dir, time_elapsed))
