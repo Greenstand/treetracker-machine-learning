@@ -2,5 +2,7 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="$PROJECT_DIR$" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/imnet/ImageNet_Utils" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/imnet/ImageNet_Utils/labelImgGUI" vcs="Git" />
   </component>
 </project>
