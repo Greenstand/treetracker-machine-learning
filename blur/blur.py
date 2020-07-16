@@ -142,7 +142,7 @@ if __name__=="__main__":
     # titles = [int(idd) for idd in random_ids]
     images = []
     titles = []
-    for data_dir in ["kilema_tanzania"]:
+    for data_dir in ["jaipur_hanuman_temple_india"]:
         dd = os.path.join(os.path.dirname(os.getcwd()), "data", data_dir)
         extensions = [".jpg", ".png"]
         for f, _, d in os.walk(dd):
