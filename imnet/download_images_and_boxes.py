@@ -11,8 +11,12 @@ _USER = "shubhomb"
 _KEY = "a057c7178f6ba153a61e3e2ec546ea3b32a8d463"
 
 if __name__ == "__main__":
+    # datadir specifies where raw images should be downloaded
     datadir = os.path.join(os.path.dirname(os.getcwd()), "data", "imnet", "original_images")
+    #bbdir specifies where annotation XMLs should be downloaded
     bbdir = os.path.join(os.path.dirname(os.getcwd()), "data", "imnet", "bounding_boxes")
+
+    # change synsets to specify relevant wnids
     synsets = {
         "judas": "n12513613",
         "palm": "n12582231",

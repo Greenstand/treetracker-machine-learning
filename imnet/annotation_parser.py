@@ -71,21 +71,17 @@ def draw_bounding_box_on_image(impath, bboxes):
 
 
 if __name__ == "__main__":
-    data_dir = os.path.dirname(os.getcwd())
-    ann_dir = os.path.join(data_dir, "data", "imnet", "bounding_boxes")
-    img_dir = os.path.join(data_dir, "data", "imnet", "original_images")
+    bbdir = os.path.join(os.path.dirname(os.getcwd()), "data", "imnet", "bounding_boxes")
+    datadir = os.path.join(os.path.dirname(os.getcwd()), "data", "imnet", "original_images")
 
     names_wanted = ["n12513613"]
     count = 0
-    for d,_,f in os.walk(img_dir):
+    for d,_,f in os.walk(datadir):
         for file in f:
-            if count == 20:
-                exit()
             jpg = os.path.join(d, file)
             if os.path.splitext(jpg)[1] == ".JPEG":
-                ann_xml = find_associated_annotation(ann_dir, jpg)
+                ann_xml = find_associated_annotation(bbdir, jpg)
                 if ann_xml:
                     bboxes = extract_bounding_box(ann_xml, names_wanted)
                     draw_bounding_box_on_image(jpg, bboxes)
                     print (bboxes)
-                    count += 1
