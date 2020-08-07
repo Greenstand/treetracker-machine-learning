@@ -2,7 +2,7 @@
 *AppEnv/*
 *.csv*
 <<<<<<< HEAD
-_pycache_
+*_pycache_*
 *virtual_env/*
 data/*
 
