@@ -1,0 +1,6 @@
+[core]
+    remote = greenstand_data
+['remote "greenstand_data"']
+    url = gdrive://1oQ4-FJDrBWSedilCknz9IFKwl6S-CWpv
+    gdrive_client_id = 878277590004-q0bufu84fpt2cmt9dj9m6nmhgt4drmcb.apps.googleusercontent.com
+    gdrive_client_secret = hzk7rzWj3A5K27mamornAyin
