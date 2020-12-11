@@ -35,7 +35,7 @@ from PIL import Image, ImageDraw
 from  collections import OrderedDict
 import numpy as np
 import io
-import s3fs
+# import s3fs
 
 
 
@@ -140,18 +140,18 @@ class ImnetDataset(Dataset):
         self.file_stream = io.StringIO()
 
         for i in self.classes:
-            temp_imgs = S3_FILESYSTEM.ls(os.path.join(self.img_dir, i))
+            temp_imgs = os.listdir(os.path.join(self.img_dir, i))
             for img_path in temp_imgs:
                 if not "tar" in img_path:
                     name = os.path.basename(img_path.split('.')[0])
                     self.imgs.append(name)
 
         self.bb_dict = {}
-        for f, _, d in S3_FILESYSTEM.walk(self.bb_dir):
+        for f, _, d in os.walk(self.bb_dir):
             for file in d:
                 if os.path.splitext(file)[1] == ".xml" and file.split("_")[0] in tree_synsets.values():
-                    with S3_FILESYSTEM.open(os.path.join(f, file)) as s3file:
-                        tree = ElementTree.parse(s3file)
+                    with open(os.path.join(f, file)) as file_obj:
+                        tree = ElementTree.parse(file_obj)
                         root = tree.getroot()
                         obj = root.find("object")
                         b = obj.find("bndbox")
@@ -177,7 +177,7 @@ class ImnetDataset(Dataset):
 
         img_path = os.path.join(self.img_dir, label, f"{name}.JPEG")
         bb_path = os.path.join(self.bb_dir, label, "Annotation", name.split("_")[0], f"{name}.xml")
-        with S3_FILESYSTEM.open(img_path) as f:
+        with open(img_path) as f:
             img = Image.open(f).convert("RGB")
 
         if bb_path in self.bb_dict.keys():
@@ -337,7 +337,7 @@ class ModelTrainer():
         rps = [param for param in self.model.regressor.parameters()]
         self.optimizer = torch.optim.Adam(params=cps + rps, lr=args.lr, weight_decay=args.gamma)
 
-        if S3_FILESYSTEM.exists(self.model_savepath):
+        if os.path.exists(self.model_savepath):
             print("Found saved model at savepath %s" % (self.model_savepath))
             checkpoint = torch.load(self.model_savepath)
             self.model.load_state_dict(checkpoint['model_state_dict'])
@@ -532,7 +532,7 @@ if __name__ == '__main__':
     parser.add_argument('--hosts', type=list, default=json.loads(os.environ['SM_HOSTS']))
     parser.add_argument('--current-host', type=str, default=os.environ['SM_CURRENT_HOST'])
     parser.add_argument('--model-dir', type=str, default=os.environ['SM_MODEL_DIR'])
-    parser.add_argument('--training-dir', type=str, default=os.environ['SM_CHANNEL_TRAIN'])
+    parser.add_argument('--training-dir', type=str, default=os.environ['SM_INPUT_DIR'])
     # parser.add_argument('--test-dir', type=str, default=os.environ['SM_CHANNEL_TEST'])
 
     parser.add_argument('--num-gpus', type=int, default=os.environ['SM_NUM_GPUS'])
@@ -544,7 +544,6 @@ if __name__ == '__main__':
     ])
 
 
-    S3_FILESYSTEM = s3fs.S3FileSystem()  # A global that will be used in dataset creation.
-    trainer = ModelTrainer(Customized_MobileNet(pretrained_model=models.mobilenet_v2(pretrained=True)),
-                           parser.parse_args())
+    trainer = ModelTrainer(Customized_MobileNet(pretrained_model=models.mobilenet_v2(pretrained=True)))
+    trainer.train(parser.parse_args())
 
