@@ -40,61 +40,6 @@ import io
 
 
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-logger.addHandler(logging.StreamHandler(sys.stdout))
-
-
-# Based on https://github.com/pytorch/examples/blob/master/mnist/main.py
-
-
-tree_synsets = {
-    "judas": "n12513613",
-    "palm": "n12582231",
-    "pine": "n11608250",
-    "china tree": "n12741792",
-    "fig": "n12401684",
-    "cabbage": "n12478768",
-    "cacao": "n12201580",
-    "kapok": "n12190410",
-    "iron": "n12317296",
-    "linden": "n12202936",
-    "pepper": "n12765115",
-    "rain": "n11759853",
-    "dita": "n11770256",
-    "alder": "n12284262",
-    "silk": "n11759404",
-    "coral": "n12527738",
-    "huisache": "n11757851",
-    "fringe": "n12302071",
-    "dogwood": "n12946849",
-    "cork": "n12713866",
-    "ginkgo": "n11664418",
-    "golden shower": "n12492106",
-    "balata": "n12774299",
-    "baobab": "n12189987",
-    "sorrel": "n12242409",
-    "Japanese pagoda": "n12570394",
-    "Kentucky coffee": "n12496427",
-    "Logwood": "n12496949"
-}
-nontree_synsets = {
-    "garbage_bin": "n02747177",
-    "carion_fungus": "n13040303",
-    "basidiomycetous_fungus": "n13049953",
-    "jelly_fungus": "n13060190",
-    "desktop_computer": "n03180011",
-    "laptop_computer": "n03642806",
-    "cellphone": "n02992529",
-    "desk": "n03179701",
-    "station_wagon": "n02814533",
-    "pickup_truck": "n03930630",
-    "trailer_truck": "n04467665"
-}
-synsets = {**tree_synsets, **nontree_synsets}
-
-
-
 # Helper functions
 def rmse(x, y):
   '''
@@ -122,7 +67,7 @@ def iou(box_a, box_b):
 class ImnetDataset(Dataset):
 
     # initialise function of class
-    def __init__(self, dir, synsets, transforms=None, device=None, one_hot=False, nontrees=False):
+    def __init__(self, dir, transforms=None, device=None, one_hot=False, nontrees=False):
         # the data directories
         self.img_dir = os.path.join(dir, "original_images")
         self.bb_dir = os.path.join(dir, "bounding_boxes")
@@ -177,7 +122,7 @@ class ImnetDataset(Dataset):
 
         img_path = os.path.join(self.img_dir, label, f"{name}.JPEG")
         bb_path = os.path.join(self.bb_dir, label, "Annotation", name.split("_")[0], f"{name}.xml")
-        with open(img_path) as f:
+        with open(img_path, "rb") as f:
             img = Image.open(f).convert("RGB")
 
         if bb_path in self.bb_dict.keys():
@@ -304,7 +249,7 @@ class ModelTrainer():
 
 
 
-    def train(self, *args):
+    def train(self, args):
         '''
         Main function to train.
         '''
@@ -314,7 +259,7 @@ class ModelTrainer():
             # Define data loader for training and validation
         self.batch_size = args.batch_size
         self.model_savepath = args.model_dir
-        dataset = ImnetDataset(args.training_dir, device=self.device)
+        dataset = ImnetDataset(os.environ["SM_CHANNEL_TRAINING"], transforms=MOBILENET_PREPROCESSING, device=self.device)
 
         # Make validation split
         self.trainsize = int(args.train_split * len(dataset))
@@ -336,21 +281,21 @@ class ModelTrainer():
         cps = [param for param in self.model.classifier.parameters()]
         rps = [param for param in self.model.regressor.parameters()]
         self.optimizer = torch.optim.Adam(params=cps + rps, lr=args.lr, weight_decay=args.gamma)
-
-        if os.path.exists(self.model_savepath):
-            print("Found saved model at savepath %s" % (self.model_savepath))
-            checkpoint = torch.load(self.model_savepath)
-            self.model.load_state_dict(checkpoint['model_state_dict'])
-            self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-            self.start_epoch = checkpoint['epoch']
-        else:
-            pass
+#       TODO: see how sagemaker handles model checkpointing; may be handled implicitly by SM Pytorch class
+#         if os.path.exists(self.model_savepath):
+#             print("Found saved model at savepath %s" % (self.model_savepath))
+#             checkpoint = torch.load(self.model_savepath)
+#             self.model.load_state_dict(checkpoint['model_state_dict'])
+#             self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+#             self.start_epoch = checkpoint['epoch']
+#         else:
+#             pass
 
         is_distributed = len(args.hosts) > 1 and args.backend is not None
         logger.debug("Distributed training - {}".format(is_distributed))
         use_cuda = args.num_gpus > 0
         logger.debug("Number of gpus available - {}".format(args.num_gpus))
-        kwargs = {'num_workers': 1, 'pin_memory': True} if use_cuda else {}
+        kwargs = {'num_workers': args.n_workers, 'pin_memory': True} if use_cuda else {}
         device = torch.device("cuda" if use_cuda else "cpu")
 
         if is_distributed:
@@ -428,13 +373,13 @@ class ModelTrainer():
                         torch.mean(torch.as_tensor(batch_rmse, dtype=torch.float32))))
                     logger.info("Avg Bbox IoU: {:.3f} \n".format(
                         torch.mean(torch.as_tensor(batch_iou, dtype=torch.float32))))
-                    torch.save({
-                        'epoch': epoch + 1,
-                        'model_state_dict': self.model.state_dict(),
-                        'optimizer_state_dict': self.optimizer.state_dict(),
-                    },
-                        self.model_savepath)
-                    print("Checkpoint created")
+#                     torch.save({
+#                         'epoch': epoch + 1,
+#                         'model_state_dict': self.model.state_dict(),
+#                         'optimizer_state_dict': self.optimizer.state_dict(),
+#                     },
+#                         self.model_savepath)
+#                     print("Checkpoint created")
 
             if epoch % args.val_interval == 0:
                 print("VALIDATION EPOCH ", epoch)
@@ -491,14 +436,14 @@ class ModelTrainer():
             print("Epoch ", epoch + 1, " finished in ", time.time() - epoch_start)
         tr_metric_dict = {"Loss": epoch_loss, "Acc": epoch_acc, "IoU": epoch_iou, "RMSE": epoch_rmse}
         val_metric_dict = {"Loss": val_epoch_loss, "Acc": val_epoch_acc, "IoU": val_epoch_iou, "RMSE": val_epoch_rmse}
-        torch.save({
-            'epoch': epoch + 1,
-            'model_state_dict': self.model.state_dict(),
-            'optimizer_state_dict': self.optimizer.state_dict(),
-            'tr_metric_dict': tr_metric_dict,
-            'val_metric_dict': val_metric_dict
-        },
-            self.model_savepath)
+#         torch.save({
+#             'epoch': epoch + 1,
+#             'model_state_dict': self.model.state_dict(),
+#             'optimizer_state_dict': self.optimizer.state_dict(),
+#             'tr_metric_dict': tr_metric_dict,
+#             'val_metric_dict': val_metric_dict
+#         },
+#             self.model_savepath)
         print("Final checkpoint created. Model dict and metrics saved. ")
         return self.model, tr_metric_dict, val_metric_dict
 
@@ -509,6 +454,8 @@ if __name__ == '__main__':
     # Data and model checkpoints directories
     parser.add_argument('--batch-size', type=int, default=64, metavar='N',
                         help='input batch size for training (default: 64)')
+    parser.add_argument('--train_split', type=float, default=0.75, metavar='N',
+                       help='percentage of data to use as training vs validation')
     parser.add_argument('--epochs', type=int, default=10, metavar='N',
                         help='number of epochs to train (default: 10)')
     parser.add_argument('--lr', type=float, default=0.01, metavar='LR',
@@ -521,7 +468,7 @@ if __name__ == '__main__':
                         help='how many batches to wait before logging training status')
     parser.add_argument('--pin_memory', type=bool, default=False, metavar='N',
                         help='pin memory')
-    parser.add_argument('--n_workers', type=int, default=1, metavar='N',
+    parser.add_argument('--n_workers', type=int, default=0, metavar='N',
                         help='number of dataloader workers')
     parser.add_argument('--val_interval', type=int, default=1, metavar='N',
                         help='how often to update validation metrics')
@@ -537,13 +484,65 @@ if __name__ == '__main__':
 
     parser.add_argument('--num-gpus', type=int, default=os.environ['SM_NUM_GPUS'])
 
-    mobilenet_preprocessing = transforms.Compose([
+    MOBILENET_PREPROCESSING = transforms.Compose([
         transforms.Resize((128, 128)),
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
     ])
 
-
+    args = parser.parse_args()
     trainer = ModelTrainer(Customized_MobileNet(pretrained_model=models.mobilenet_v2(pretrained=True)))
-    trainer.train(parser.parse_args())
+    
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.DEBUG)
+    logger.addHandler(logging.StreamHandler(sys.stdout))
+
+
+    # Based on https://github.com/pytorch/examples/blob/master/mnist/main.py
+    tree_synsets = {
+        "judas": "n12513613",
+        "palm": "n12582231",
+        "pine": "n11608250",
+        "china tree": "n12741792",
+        "fig": "n12401684",
+        "cabbage": "n12478768",
+        "cacao": "n12201580",
+        "kapok": "n12190410",
+        "iron": "n12317296",
+        "linden": "n12202936",
+        "pepper": "n12765115",
+        "rain": "n11759853",
+        "dita": "n11770256",
+        "alder": "n12284262",
+        "silk": "n11759404",
+        "coral": "n12527738",
+        "huisache": "n11757851",
+        "fringe": "n12302071",
+        "dogwood": "n12946849",
+        "cork": "n12713866",
+        "ginkgo": "n11664418",
+        "golden shower": "n12492106",
+        "balata": "n12774299",
+        "baobab": "n12189987",
+        "sorrel": "n12242409",
+        "Japanese pagoda": "n12570394",
+        "Kentucky coffee": "n12496427",
+        "Logwood": "n12496949"
+    }
+    nontree_synsets = {
+        "garbage_bin": "n02747177",
+        "carion_fungus": "n13040303",
+        "basidiomycetous_fungus": "n13049953",
+        "jelly_fungus": "n13060190",
+        "desktop_computer": "n03180011",
+        "laptop_computer": "n03642806",
+        "cellphone": "n02992529",
+        "desk": "n03179701",
+        "station_wagon": "n02814533",
+        "pickup_truck": "n03930630",
+        "trailer_truck": "n04467665"
+    }
+    synsets = {**tree_synsets, **nontree_synsets}
+
+    trainer.train(args)
 
