@@ -113,12 +113,12 @@ class ImnetDataset(Dataset):
         name = self.imgs[idx]
         label = self.rev_synsets[name.split("_")[0]]
         # modify filters to determine if trees present
-        is_tree = 1.0
+        is_tree = 1
         if self.nontrees_present:
             if label in tree_synsets.keys():
-                is_tree = 1.0
+                is_tree = 0
             else:
-                is_tree = 0.0
+                is_tree = 1
 
         img_path = os.path.join(self.img_dir, label, f"{name}.JPEG")
         bb_path = os.path.join(self.bb_dir, label, "Annotation", name.split("_")[0], f"{name}.xml")
@@ -150,7 +150,9 @@ class ImnetDataset(Dataset):
         targets = {}
         targets["boxes"] = boxes
         targets["image_class"] = image_id
-        targets["is_tree"] = is_tree
+        is_tree_vec = np.zeros(2, dtype=np.float32)
+        is_tree_vec[is_tree] = 1.0 # index 0 indiciates positive case, index 1 is negative case
+        targets["is_tree"] = torch.tensor(is_tree_vec, dtype=torch.double).squeeze()
 
         return img, targets
 
@@ -179,7 +181,7 @@ class Customized_MobileNet(nn.Module):
         """
         self.classifier = nn.Sequential(
             nn.Dropout(0.2),
-            nn.Linear(1280, 1),  # 1280 is num_outputs of the last feature layer
+            nn.Linear(1280, 2),  # 1280 is num_outputs of the last feature layer, 2 indices for positive/negative class
         )
         for param in self.classifier.parameters():
             param.requires_grad = True
@@ -204,20 +206,20 @@ def _average_gradients(model):
         param.grad.data /= size
 
 
-def loss_spec(binary_label, binary_preds, bbox_coords, bbox_preds, binary_weight=0.5, bbox_weight=0.5):
+def loss_spec(binary_label, binary_preds, bbox_coords, bbox_preds, binary_weight=0.5):
     '''
     The loss function we use is a weighted combination of binary loss and bounding box regression loss.
     Modify this function for other loss functions depending on use case.
     :param binary_label: Label whether image contains positive class
     :param binary_preds: Predict positive class presence in image
     :param bbox_coords: Label of bounding box in positive class. Only applies if positive class is present
-    :param bbox_preds: Prediction of bounding box of positive class
+    :param bbox_preds: Prediction of bounding box of positive classf
     :return:
     '''
-
-    binary_detection_error = nn.BCEWithLogitsLoss(binary_label, binary_preds.unsqueeze(1))# output, target
+    # TODO: Add positive weight to remedy class imbalance
+    binary_detection_error = nn.BCEWithLogitsLoss(binary_preds.squeeze(), binary_label)# output, target
     bounding_box_error = nn.MSELoss(bbox_preds, bbox_coords)
-    return binary_weight * binary_detection_error + bbox_weight * bounding_box_error
+    return binary_weight * binary_detection_error + (1-binary_weight) * bounding_box_error
 
 
 def model_fn(model_dir):
@@ -291,7 +293,7 @@ class ModelTrainer():
 #         else:
 #             pass
 
-        is_distributed = len(args.hosts) > 1 and args.backend is not None
+        is_distributed = (len(args.hosts) > 1) and (args.backend is not None)
         logger.debug("Distributed training - {}".format(is_distributed))
         use_cuda = args.num_gpus > 0
         logger.debug("Number of gpus available - {}".format(args.num_gpus))
@@ -323,11 +325,11 @@ class ModelTrainer():
         val_epoch_acc = []
         val_epoch_rmse = []
         val_epoch_iou = []
-        print("Starting at epoch %d" % self.start_epoch)
+        logger.info("Starting at epoch {}".format(self.start_epoch))
         for epoch in range(1, args.epochs):
             epoch_start = time.time()
             print("=" * 50)
-            logger.info("EPOCH ", epoch)
+            logger.info("EPOCH {}".format(epoch))
             batch_count = 0
             batch_loss = []
             batch_acc = []
@@ -364,14 +366,14 @@ class ModelTrainer():
                 batch_loss.append(loss.data)
 
                 if batch_count % args.log_interval == 0 or batch_count == num_tr_batches:
-                    logger.info("\nLast Batch Avg Metrics, Batch %d/%d" % (batch_count, num_tr_batches))
+                    logger.info("Last Batch Avg Metrics, Batch {}{}".format(batch_count, num_tr_batches))
                     logger.info("Total Loss: {:.3f}".format(
                         torch.mean(torch.as_tensor(batch_loss, dtype=torch.float32))))
                     logger.info("Classification Acc: {:.3f}".format(
                         torch.mean(torch.as_tensor(batch_acc, dtype=torch.float32))))
                     logger.info("BBox RMSE: {:.3f}".format(
                         torch.mean(torch.as_tensor(batch_rmse, dtype=torch.float32))))
-                    logger.info("Avg Bbox IoU: {:.3f} \n".format(
+                    logger.info("Avg Bbox IoU: {:.3f}".format(
                         torch.mean(torch.as_tensor(batch_iou, dtype=torch.float32))))
 #                     torch.save({
 #                         'epoch': epoch + 1,
