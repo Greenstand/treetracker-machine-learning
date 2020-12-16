@@ -217,9 +217,9 @@ def loss_spec(binary_label, binary_preds, bbox_coords, bbox_preds, binary_weight
     :return:
     '''
     # TODO: Add positive weight to remedy class imbalance
-    binary_detection_error = nn.BCEWithLogitsLoss(binary_preds.squeeze(), binary_label)# output, target
-    bounding_box_error = nn.MSELoss(bbox_preds, bbox_coords)
-    return binary_weight * binary_detection_error + (1-binary_weight) * bounding_box_error
+    binary_detection_error = nn.BCEWithLogitsLoss()
+    bounding_box_error = nn.MSELoss()
+    return binary_weight * binary_detection_error(binary_preds, binary_label) + (1-binary_weight) * bounding_box_error(bbox_preds, bbox_coords)
 
 
 def model_fn(model_dir):
@@ -366,7 +366,7 @@ class ModelTrainer():
                 batch_loss.append(loss.data)
 
                 if batch_count % args.log_interval == 0 or batch_count == num_tr_batches:
-                    logger.info("Last Batch Avg Metrics, Batch {}{}".format(batch_count, num_tr_batches))
+                    logger.info("Last Batch Avg Metrics, Batch {}/{}".format(batch_count, num_tr_batches))
                     logger.info("Total Loss: {:.3f}".format(
                         torch.mean(torch.as_tensor(batch_loss, dtype=torch.float32))))
                     logger.info("Classification Acc: {:.3f}".format(
@@ -466,7 +466,7 @@ if __name__ == '__main__':
                         help='weight decay (default: 0.0001)')
     parser.add_argument('--seed', type=int, default=1, metavar='S',
                         help='random seed (default: 1)')
-    parser.add_argument('--log-interval', type=int, default=100, metavar='N',
+    parser.add_argument('--log_interval', type=int, default=100, metavar='N',
                         help='how many batches to wait before logging training status')
     parser.add_argument('--pin_memory', type=bool, default=False, metavar='N',
                         help='pin memory')
