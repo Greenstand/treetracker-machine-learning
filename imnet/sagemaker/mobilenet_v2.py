@@ -35,7 +35,7 @@ from PIL import Image, ImageDraw
 from  collections import OrderedDict
 import numpy as np
 import io
-# import s3fs
+import pandas as pd
 
 
 
@@ -60,105 +60,38 @@ def iou(box_a, box_b):
   union = area_a + area_b - area_intersect
   return area_intersect / union
 
-
-
-
-
-class ImnetDataset(Dataset):
-
-    # initialise function of class
-    def __init__(self, dir, transforms=None, device=None, one_hot=False, nontrees=False):
-        # the data directories
-        self.img_dir = os.path.join(dir, "original_images")
-        self.bb_dir = os.path.join(dir, "bounding_boxes")
-        self.nontrees_present = nontrees
-        # synsets library to get the associated class
-        if not self.nontrees_present:  # only tree images
-            self.synsets = tree_synsets
-        else:  # mix other things
-            self.synsets = synsets
-        self.rev_synsets = {y: x for x, y in zip(synsets.keys(), synsets.values())}
-        self.classes = list(self.synsets.keys())
-
-        self.one_hot = one_hot
-        self.imgs = []
-        self.file_stream = io.StringIO()
-
-        for i in self.classes:
-            temp_imgs = os.listdir(os.path.join(self.img_dir, i))
-            for img_path in temp_imgs:
-                if not "tar" in img_path:
-                    name = os.path.basename(img_path.split('.')[0])
-                    self.imgs.append(name)
-
-        self.bb_dict = {}
-        for f, _, d in os.walk(self.bb_dir):
-            for file in d:
-                if os.path.splitext(file)[1] == ".xml" and file.split("_")[0] in tree_synsets.values():
-                    with open(os.path.join(f, file)) as file_obj:
-                        tree = ElementTree.parse(file_obj)
-                        root = tree.getroot()
-                        obj = root.find("object")
-                        b = obj.find("bndbox")
-                        xmin = int(b.find("xmin").text)
-                        ymin = int(b.find("ymin").text)
-                        xmax = int(b.find("xmax").text)
-                        ymax = int(b.find("ymax").text)
-                        self.bb_dict[os.path.join(f, file)] = (xmin, ymin, xmax, ymax)
-
-        self.transforms = transforms
-        self.device = device
-
+class Sagemaker_Imnet_Dataset(Dataset):
+    def __init__(self, path):
+        super().__init__()
+        OK_FORMATS = [".jpg", ".png"]
+        self.basepath = path
+        self.images = []
+        for f, _, d in os.walk(self.basepath):
+            for file in d: 
+                if os.path.splitext(file)[1] in OK_FORMATS:
+                    self.images.append(os.path.join(f, file))
+        self.labels_df = pd.read_csv(os.path.join(path, "labels.csv"), index_col=0)
+        print ("Label preview")
+        print (self.labels_df.head(5))
+        
     def __getitem__(self, idx):
-        name = self.imgs[idx]
-        label = self.rev_synsets[name.split("_")[0]]
-        # modify filters to determine if trees present
-        is_tree = 1
-        if self.nontrees_present:
-            if label in tree_synsets.keys():
-                is_tree = 0
-            else:
-                is_tree = 1
-
-        img_path = os.path.join(self.img_dir, label, f"{name}.JPEG")
-        bb_path = os.path.join(self.bb_dir, label, "Annotation", name.split("_")[0], f"{name}.xml")
-        with open(img_path, "rb") as f:
-            img = Image.open(f).convert("RGB")
-
-        if bb_path in self.bb_dict.keys():
-            xmin, ymin, xmax, ymax = self.bb_dict[bb_path]
-        else:
-            # the whole image is the bounding box label, as NoneType was causing collating issue.
-            xmin = 0
-            ymin = 0
-            xmax = img.size[0]
-            ymax = img.size[1]
-        boxes = torch.as_tensor([xmin, ymin, xmax, ymax], dtype=torch.float32)
-        if not is_tree:
-            boxes = torch.as_tensor([0, 0, 0, 0],
-                                    dtype=torch.float32)  # 0 out nontree bounding boxes, don't want predictions for these
-
-        if self.transforms is not None:
-            img = self.transforms(img)
-
-        if self.one_hot:
-            image_id = torch.zeros(len(self.classes), dtype=torch.float32)
-            image_id[self.classes.index(label)] = 1.0
-        else:
-            image_id = torch.tensor([self.classes.index(label)])
-
-        targets = {}
-        targets["boxes"] = boxes
-        targets["image_class"] = image_id
-        is_tree_vec = np.zeros(2, dtype=np.float32)
-        is_tree_vec[is_tree] = 1.0 # index 0 indiciates positive case, index 1 is negative case
-        targets["is_tree"] = torch.tensor(is_tree_vec, dtype=torch.double).squeeze()
-
-        return img, targets
-
+        imname = os.path.basename(self.images[idx])
+        path_id = imname.split(".")[0]
+        if "_" in path_id: # augmented
+            path_id = imname.split("_")[0]
+        class_label = self.labels_df.at[path_id, "class"]
+        bbox = self.labels_df.at[path_id, "bbox"]
+        is_tree = self.labels_df.at[path_id, "is_tree"]
+        
+#         class_label, bbox, is_tree = row["class"], row["bbox"], row["is_tree"]
+        img = Image.open(self.images[idx])
+        binary = 0
+        labels = {"species": class_label, "bbox": bbox, "is_tree": binary}
+        return img, labels
+    
     def __len__(self):
-        return len(self.imgs)
-
+        return len(self.images)
+        
 class Customized_MobileNet(nn.Module):
     def __init__(self, pretrained_model):
         super().__init__()
@@ -261,18 +194,15 @@ class ModelTrainer():
             # Define data loader for training and validation
         self.batch_size = args.batch_size
         self.model_savepath = args.model_dir
-        dataset = ImnetDataset(os.environ["SM_CHANNEL_TRAINING"], transforms=MOBILENET_PREPROCESSING, device=self.device)
-
-        # Make validation split
-        self.trainsize = int(args.train_split * len(dataset))
-        self.valsize = len(dataset) - self.trainsize
-        train_dataset, valid_dataset = torch.utils.data.dataset.random_split(dataset, [self.trainsize, self.valsize])
+        dataset = Sagemaker_Imnet_Dataset(os.environ["SM_CHANNEL_TRAINING"])
+        val_dataset = Sagemaker_Imnet_Dataset(os.environ["SM_CHANNEL_VALIDATION"])
+        
         self.data_loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=True, sampler=None,
                                       batch_sampler=None, num_workers=args.n_workers, collate_fn=None,
                                       pin_memory=args.pin_memory, drop_last=False, timeout=0,
                                       worker_init_fn=None)
 
-        self.val_data_loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=True, sampler=None,
+        self.val_data_loader = DataLoader(val_dataset, batch_size=self.batch_size, shuffle=True, sampler=None,
                                           batch_sampler=None, num_workers=args.n_workers, collate_fn=None,
                                           pin_memory=args.pin_memory, drop_last=False, timeout=0,
                                           worker_init_fn=None)
@@ -315,8 +245,8 @@ class ModelTrainer():
         torch.manual_seed(args.seed)
         if use_cuda:
             torch.cuda.manual_seed(args.seed)
-        num_tr_batches = np.ceil(self.trainsize / self.data_loader.batch_size)
-        num_val_batches = np.ceil(self.valsize / self.valsize)
+        num_tr_batches = np.ceil(len(dataset) / self.data_loader.batch_size)
+        num_val_batches = np.ceil(len(val_dataset) / self.val_data_loader.batch_size)
         epoch_loss = []
         epoch_acc = []
         epoch_rmse = []
@@ -340,11 +270,11 @@ class ModelTrainer():
                 # Device designation
                 if self.device == torch.device("cuda:0"):
                     batchx = batchx.cuda(non_blocking=True)
-                    batchy["boxes"] = batchy["boxes"].cuda(non_blocking=True)
-                    batchy["image_class"] = batchy["image_class"].cuda(non_blocking=True)
+                    batchy["bbox"] = batchy["bbox"].cuda(non_blocking=True)
+                    batchy["species"] = batchy["species"].cuda(non_blocking=True)
                     batchy["is_tree"] = batchy["is_tree"].cuda(non_blocking=True)
-                class_labels = batchy["image_class"]
-                box_labels = batchy["boxes"]
+                class_labels = batchy["species"]
+                box_labels = batchy["bbox"]
                 is_tree_labels = batchy["is_tree"]
 
                 # Forward pass
@@ -399,11 +329,11 @@ class ModelTrainer():
                         # Device designation
                         if self.device == torch.device("cuda:0"):
                             batchx = batchx.cuda(non_blocking=True)
-                            batchy["boxes"] = batchy["boxes"].cuda(non_blocking=True)
-                            batchy["image_class"] = batchy["image_class"].cuda(non_blocking=True)
+                            batchy["bbox"] = batchy["bbox"].cuda(non_blocking=True)
+                            batchy["species"] = batchy["species"].cuda(non_blocking=True)
                             batchy["is_tree"] = batchy["is_tree"].cuda(non_blocking=True)
-                        class_labels = batchy["image_class"]
-                        box_labels = batchy["boxes"]
+                        class_labels = batchy["species"]
+                        box_labels = batchy["bbox"]
                         is_tree_labels = batchy["is_tree"]
                         is_tree_preds, box_preds = self.model.forward(batchx)
                         losses.append(
@@ -481,9 +411,9 @@ if __name__ == '__main__':
     parser.add_argument('--hosts', type=list, default=json.loads(os.environ['SM_HOSTS']))
     parser.add_argument('--current-host', type=str, default=os.environ['SM_CURRENT_HOST'])
     parser.add_argument('--model-dir', type=str, default=os.environ['SM_MODEL_DIR'])
-    parser.add_argument('--training-dir', type=str, default=os.environ['SM_INPUT_DIR'])
-    # parser.add_argument('--test-dir', type=str, default=os.environ['SM_CHANNEL_TEST'])
 
+    for k, v in os.environ.items():
+        print (k, v)
     parser.add_argument('--num-gpus', type=int, default=os.environ['SM_NUM_GPUS'])
 
     MOBILENET_PREPROCESSING = transforms.Compose([
