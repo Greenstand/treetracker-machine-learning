@@ -78,6 +78,7 @@ class Sagemaker_Imnet_Dataset(Dataset):
         print ("Didn't find labels for %d images in %s"%(unlabeled_count, path))
         print ("Shuffled label preview")
         print (self.labels_df.sample(frac=1).head(5))
+        print (self.labels_df.shape)
         
     def __getitem__(self, idx):
         imname = os.path.basename(self.images[idx])
