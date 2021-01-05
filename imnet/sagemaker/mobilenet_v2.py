@@ -87,10 +87,10 @@ class Sagemaker_Imnet_Dataset(Dataset):
             path_id = imname.split("_aug")[0]
         row = self.labels_df.loc[path_id, :]
         class_label, bbox, is_tree = row["class"], row["bbox"], row["is_tree"]
-        img = Image.open(self.images[idx])
+        img = np.array(Image.open(self.images[idx]))
         binary = 0
         labels = {"species": class_label, "bbox": bbox, "is_tree": binary}
-        return img, labels
+        return torch.as_tensor(img), labels
     
     def __len__(self):
         return len(self.images)
