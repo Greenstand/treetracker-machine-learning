@@ -144,17 +144,17 @@ def save_from_dataframe(df, output_dir):
     '''
     saved_images = {}
     for class_name in SYNSETS.keys():
+        print ("Processing class ", class_name)  
         df_subset = df[df["class"] == class_name]
         class_output_path = os.path.join(output_dir, class_name)
         if not os.path.exists(class_output_path):
             os.makedirs(class_output_path)
         for row in df_subset.itertuples():
-            name = row["Index"]
-            img = Image.open(row["full_path"])
+            name = row.Index
+            img = Image.open(row.full_path)
             img = image_transform(img)
             img.save(os.path.join(class_output_path, name + ".jpg"))
             saved_images[name] = os.path.join(class_output_path, name + ".jpg")
-            print ("Saved %s"%name)
     saved_images = pd.DataFrame.from_dict(saved_images, orient="index")
     saved_images.columns = ["path"]
     df.loc[:, ["class", "bbox", "is_tree"]].to_csv(os.path.join(output_dir, "labels.csv"))
@@ -179,9 +179,9 @@ def augment_from_dataframe(df, output_dir, suffix="_ aug"):
         class_output_path = os.path.join(output_dir, class_name)
         if not os.path.exists(class_output_path):
             raise ValueError("This class hasn't been created yet un-augmented.")
-        for i, row in df.iterrows():
-            name = row.index[0]
-            img = Image.open(row["full_path"])
+        for row in df.itertuples():
+            name = row.Index
+            img = Image.open(row.full_path)
             img = image_augmentation(img)
             img.save(os.path.join(class_output_path, name + suffix + ".jpg"))
             augmented_images[name ] = os.path.join(class_output_path, name + suffix + ".jpg")

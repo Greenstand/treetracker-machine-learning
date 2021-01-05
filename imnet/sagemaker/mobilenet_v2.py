@@ -66,24 +66,26 @@ class Sagemaker_Imnet_Dataset(Dataset):
         OK_FORMATS = [".jpg", ".png"]
         self.basepath = path
         self.images = []
+        self.labels_df = pd.read_csv(os.path.join(path, "labels.csv"), index_col=0)
+        unlabeled_count = 0
         for f, _, d in os.walk(self.basepath):
             for file in d: 
                 if os.path.splitext(file)[1] in OK_FORMATS:
-                    self.images.append(os.path.join(f, file))
-        self.labels_df = pd.read_csv(os.path.join(path, "labels.csv"), index_col=0)
-        print ("Label preview")
-        print (self.labels_df.head(5))
+                    if os.path.splitext(file)[0] in self.labels_df.index:
+                        self.images.append(os.path.join(f, file))
+                    else:
+                        unlabeled_count += 1
+        print ("Didn't find labels for %d images in %s"%(unlabeled_count, path))
+        print ("Shuffled label preview")
+        print (self.labels_df.sample(frac=1).head(5))
         
     def __getitem__(self, idx):
         imname = os.path.basename(self.images[idx])
         path_id = imname.split(".")[0]
-        if "_" in path_id: # augmented
-            path_id = imname.split("_")[0]
-        class_label = self.labels_df.at[path_id, "class"]
-        bbox = self.labels_df.at[path_id, "bbox"]
-        is_tree = self.labels_df.at[path_id, "is_tree"]
-        
-#         class_label, bbox, is_tree = row["class"], row["bbox"], row["is_tree"]
+        if "_aug" in path_id: # augmented
+            path_id = imname.split("_aug")[0]
+        row = self.labels_df.loc[path_id, :]
+        class_label, bbox, is_tree = row["class"], row["bbox"], row["is_tree"]
         img = Image.open(self.images[idx])
         binary = 0
         labels = {"species": class_label, "bbox": bbox, "is_tree": binary}
@@ -163,11 +165,14 @@ def model_fn(model_dir):
     return model.to(device)
 
 
-def save_model(model, model_dir):
+def save_model(model, metrics, model_dir):
     logger.info("Saving the model.")
     path = os.path.join(model_dir, 'model.pth')
     # recommended way from http://pytorch.org/docs/master/notes/serialization.html
     torch.save(model.cpu().state_dict(), path)
+    
+    for k,v in metrics.items():
+        json.dumps(v, os.path.join(model_dir, k))
 
 
 class ModelTrainer():
@@ -202,7 +207,7 @@ class ModelTrainer():
                                       pin_memory=args.pin_memory, drop_last=False, timeout=0,
                                       worker_init_fn=None)
 
-        self.val_data_loader = DataLoader(val_dataset, batch_size=self.batch_size, shuffle=True, sampler=None,
+        self.val_data_loader = DataLoader(val_dataset, batch_size=len(val_dataset), shuffle=True, sampler=None,
                                           batch_sampler=None, num_workers=args.n_workers, collate_fn=None,
                                           pin_memory=args.pin_memory, drop_last=False, timeout=0,
                                           worker_init_fn=None)
@@ -368,14 +373,8 @@ class ModelTrainer():
             print("Epoch ", epoch + 1, " finished in ", time.time() - epoch_start)
         tr_metric_dict = {"Loss": epoch_loss, "Acc": epoch_acc, "IoU": epoch_iou, "RMSE": epoch_rmse}
         val_metric_dict = {"Loss": val_epoch_loss, "Acc": val_epoch_acc, "IoU": val_epoch_iou, "RMSE": val_epoch_rmse}
-#         torch.save({
-#             'epoch': epoch + 1,
-#             'model_state_dict': self.model.state_dict(),
-#             'optimizer_state_dict': self.optimizer.state_dict(),
-#             'tr_metric_dict': tr_metric_dict,
-#             'val_metric_dict': val_metric_dict
-#         },
-#             self.model_savepath)
+        metrics = {"train_metrics": tr_metric_dict, "val_metrics": val_metric_dict}
+        save_model(self.model, metrics, os.environ["MODEL_DIR"])
         print("Final checkpoint created. Model dict and metrics saved. ")
         return self.model, tr_metric_dict, val_metric_dict
 
@@ -411,9 +410,6 @@ if __name__ == '__main__':
     parser.add_argument('--hosts', type=list, default=json.loads(os.environ['SM_HOSTS']))
     parser.add_argument('--current-host', type=str, default=os.environ['SM_CURRENT_HOST'])
     parser.add_argument('--model-dir', type=str, default=os.environ['SM_MODEL_DIR'])
-
-    for k, v in os.environ.items():
-        print (k, v)
     parser.add_argument('--num-gpus', type=int, default=os.environ['SM_NUM_GPUS'])
 
     MOBILENET_PREPROCESSING = transforms.Compose([
@@ -428,53 +424,6 @@ if __name__ == '__main__':
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.DEBUG)
     logger.addHandler(logging.StreamHandler(sys.stdout))
-
-
-    # Based on https://github.com/pytorch/examples/blob/master/mnist/main.py
-    tree_synsets = {
-        "judas": "n12513613",
-        "palm": "n12582231",
-        "pine": "n11608250",
-        "china tree": "n12741792",
-        "fig": "n12401684",
-        "cabbage": "n12478768",
-        "cacao": "n12201580",
-        "kapok": "n12190410",
-        "iron": "n12317296",
-        "linden": "n12202936",
-        "pepper": "n12765115",
-        "rain": "n11759853",
-        "dita": "n11770256",
-        "alder": "n12284262",
-        "silk": "n11759404",
-        "coral": "n12527738",
-        "huisache": "n11757851",
-        "fringe": "n12302071",
-        "dogwood": "n12946849",
-        "cork": "n12713866",
-        "ginkgo": "n11664418",
-        "golden shower": "n12492106",
-        "balata": "n12774299",
-        "baobab": "n12189987",
-        "sorrel": "n12242409",
-        "Japanese pagoda": "n12570394",
-        "Kentucky coffee": "n12496427",
-        "Logwood": "n12496949"
-    }
-    nontree_synsets = {
-        "garbage_bin": "n02747177",
-        "carion_fungus": "n13040303",
-        "basidiomycetous_fungus": "n13049953",
-        "jelly_fungus": "n13060190",
-        "desktop_computer": "n03180011",
-        "laptop_computer": "n03642806",
-        "cellphone": "n02992529",
-        "desk": "n03179701",
-        "station_wagon": "n02814533",
-        "pickup_truck": "n03930630",
-        "trailer_truck": "n04467665"
-    }
-    synsets = {**tree_synsets, **nontree_synsets}
 
     trainer.train(args)
 
