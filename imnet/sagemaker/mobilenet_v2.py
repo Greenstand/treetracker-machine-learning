@@ -79,17 +79,31 @@ class Sagemaker_Imnet_Dataset(Dataset):
         print ("Shuffled label preview")
         print (self.labels_df.sample(frac=1).head(5))
         print (self.labels_df.shape)
-        
+        self.classes = self.labels_df.loc[:, ["class"]].unique().values
+        self.class_idxs = dict(zip(self.classes, [i for i in range(len(self.classes))]))
+        self.one_hot_classes = nn.functional.one_hot(self.classes)
+    
+    def label_encode(self, row):
+        '''
+        Given a row of labels from the ImageNet database label DataFrame, convert to PyTorch tensors and
+        one-hot encoding if necessary.
+        '''
+        class_label, bbox, is_tree = row["class"], row["bbox"], row["is_tree"]
+        #TODO: PyTorch conversion
+        bbox = torch.as_tensor(bbox, dtype=torch.half) # bbox coordinates to 16-point float
+        is_tree = torch.as_tensor(is_tree, dtype=torch.uint8) # binary 0 1
+        class_label = self.one_hot_classes[self.class_idxs[class_label], :]
+        return class_label, bbox, is_tree
+    
     def __getitem__(self, idx):
         imname = os.path.basename(self.images[idx])
         path_id = imname.split(".")[0]
         if "_aug" in path_id: # augmented
             path_id = imname.split("_aug")[0]
         row = self.labels_df.loc[path_id, :]
-        class_label, bbox, is_tree = row["class"], row["bbox"], row["is_tree"]
+        class_label, bbox, is_tree = self.label_encode(row)
         img = np.array(Image.open(self.images[idx]))
-        binary = 0
-        labels = {"species": class_label, "bbox": bbox, "is_tree": binary}
+        labels = {"species": class_label, "bbox": bbox, "is_tree": is_tree}
         return torch.as_tensor(img), labels
     
     def __len__(self):
