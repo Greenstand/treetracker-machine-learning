@@ -8,6 +8,7 @@ Created by Shubhom
 December 2020
 '''
 # PyTorch Libraries
+from torchvision import transforms
 import argparse
 import pathlib
 import os
@@ -117,14 +118,22 @@ def create_path_lists(input_path, val_split, test_split, seed=42):
 
     
         
-def image_transform(img):
+def image_transforms():
     '''
+    returns torchvision pre-processing pipeline
     TODO: define some image transform 
-    @param (PIL Image)
     '''
-    img = img.resize((64, 64)) 
-    return img
+    preprocessing = transforms.Compose([
+        transforms.Resize((64, 64)),
+        #transforms.Resize(299),
+        #transforms.CenterCrop(299),
+        #transforms.ToTensor(),
+        #transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    ])
     
+    return preprocessing
+
+
 
 def image_augmentation(img):
     '''
@@ -143,6 +152,7 @@ def save_from_dataframe(df, output_dir):
     @param output_dir (str): Path to save output to 
     '''
     saved_images = {}
+    preprocessing = image_transforms()
     for class_name in SYNSETS.keys():
         print ("Processing class ", class_name)  
         df_subset = df[df["class"] == class_name]
@@ -152,7 +162,7 @@ def save_from_dataframe(df, output_dir):
         for row in df_subset.itertuples():
             name = row.Index
             img = Image.open(row.full_path)
-            img = image_transform(img)
+            img = preprocessing(img)
             img.save(os.path.join(class_output_path, name + ".jpg"))
             saved_images[name] = os.path.join(class_output_path, name + ".jpg")
     saved_images = pd.DataFrame.from_dict(saved_images, orient="index")
