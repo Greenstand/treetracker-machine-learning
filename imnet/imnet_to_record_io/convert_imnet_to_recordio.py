@@ -2,7 +2,11 @@ from imnet_download import download_imnet_dataset
 from imnet_dataset import ImnetDb
 import subprocess
 import sys, os
+import argparse
 
+
+curr_path = os.path.abspath(os.path.dirname(__file__))
+sys.path.append(os.path.join(curr_path, '..'))
 
 def select_synsets(target_synsets):
 
@@ -32,10 +36,6 @@ def write_cls_names_file(output_filename, synsets):
             output_file.write("%s\n" % item)
 
 
-curr_path = os.path.abspath(os.path.dirname(__file__))
-sys.path.append(os.path.join(curr_path, '..'))
-
-
 def define_database(dataset_folder, cls_names_file, tree_vs_nontree=True):
     if not os.path.exists(dataset_folder):
         raise Exception('Folder {} does not exist.'.format(dataset_folder))
@@ -54,9 +54,22 @@ def define_database(dataset_folder, cls_names_file, tree_vs_nontree=True):
 
 if __name__ == "__main__":
 
-    target_folder = "/datasets/greenstand/data/imnet2"
+    parser = argparse.ArgumentParser()
 
-    # use defaut species -> set to None
+    parser.add_argument('--prefix', help='prefix which precedes the output io file')
+    parser.add_argument('--folder', help='target folder to store the output io file')
+    parser.add_argument('--augment-horizontally', type=bool, default=False, help='boolean to decide whether to augment horizontally the images')
+    parser.add_argument('--show-sample', type=bool, default=False, help='boolean to show images from the dataset')
+    parsed_args = parser.parse_args()
+
+    prefix = parsed_args.prefix
+    target_folder = parsed_args.folder
+    augment_horizontally = parsed_args.augment_horizontally
+
+    if target_folder is None:
+        target_folder = "/datasets/greenstand/data/imnet2"
+
+    # use all species -> set to 'all' instead of a list
     synsets = select_synsets(['judas', 'palm', 'pine', 'fig'])
 
     cls_names_file = 'imnet.names'
@@ -64,37 +77,34 @@ if __name__ == "__main__":
 
     download_imnet_dataset(target_folder, synsets)
 
-    # image_set = 'trainval'
-
     tree_vs_nontree = True
     imnetdb = define_database(target_folder, cls_names_file, tree_vs_nontree)
 
     splitting = [0.8, 0.1, 0.1]
-    #splitting = [1.0, 0.0, 0.0]
     str_list = imnetdb.split_imglist(splitting, root=None)
 
     print("saving lists to disk...")
 
-    training_lst = os.path.join(target_folder, "aug_train.lst")
+    training_lst = os.path.join(target_folder, prefix + "train.lst")
     imnetdb.save_imglist(str_list[0], training_lst, shuffle=True)
     print("List file {} generated...".format(training_lst))
 
     # num_thread = args.num_thread
     num_thread = 1
 
-    # root_path = args.root_path
     root_path = target_folder
 
     # this command shuffles the training dataset
     cmd_arguments = ["python",
                      os.path.join(curr_path, "im2rec.py"),
                      training_lst.replace('.lst', ''), os.path.abspath(root_path),
-                     "--pack-label", "--num-thread", str(num_thread)]
+                     "--pack-label", "--num-thread", str(num_thread),
+                     "--augment-horizontally", str(augment_horizontally)]
 
     subprocess.check_call(cmd_arguments)
 
     if splitting[1] > 0:
-        validation_lst = os.path.join(target_folder, "aug_validation.lst")
+        validation_lst = os.path.join(target_folder, prefix + "validation.lst")
 
         imnetdb.save_imglist(str_list[1], validation_lst, shuffle=True)
 
@@ -104,67 +114,65 @@ if __name__ == "__main__":
                          os.path.join(curr_path, "im2rec.py"),
                          validation_lst.replace('.lst', ''), os.path.abspath(root_path),
                          "--pack-label", "--num-thread", str(num_thread)]
-
-        shuffle = False
-        if not shuffle:
-            cmd_arguments.append("--no-shuffle")
-
         subprocess.check_call(cmd_arguments)
 
     if splitting[2] > 0:
-        testing_lst = os.path.join(target_folder, "aug_test.lst")
+        testing_lst = os.path.join(target_folder, prefix + "test.lst")
 
-        imnetdb.save_imglist(str_list[2], testing_lst)
+        imnetdb.save_imglist(str_list[2], testing_lst, shuffle=False)
         print("List file {} generated...".format(testing_lst))
 
         cmd_arguments = ["python",
                          os.path.join(curr_path, "im2rec.py"),
                          testing_lst.replace('.lst', ''), os.path.abspath(root_path),
                          "--pack-label", "--num-thread", str(num_thread)]
-
-        shuffle = False
-        if not shuffle:
-            cmd_arguments.append("--no-shuffle")
-
         subprocess.check_call(cmd_arguments)
-
 
     print("Record files generated.")
 
-    # test rec file
-    import mxnet as mx
+    def show_sample_images():
+        # test rec file
+        import mxnet as mx
 
-    record = mx.recordio.MXIndexedRecordIO(os.path.join(target_folder, 'aug_train.idx'),
-                                           os.path.join(target_folder, 'aug_train.rec'), 'r')
+        record = mx.recordio.MXIndexedRecordIO(os.path.join(target_folder, prefix + 'train.idx'),
+                                               os.path.join(target_folder, prefix + 'train.rec'), 'r')
 
+        def plot_idx_record(idx):
+            item = record.read_idx(idx)
+            header, img = mx.recordio.unpack_img(item)
 
-    def plot_idx_record(idx,record):
-        item = record.read_idx(idx)
-        header, img = mx.recordio.unpack_img(item)
+            print(header)
+            import matplotlib.pyplot as plt
 
-        print(header)
-        import matplotlib.pyplot as plt
-        import matplotlib.image as mpimg
+            plt.imshow(img)
+            plt.show()
 
-        plt.imshow(img)
-        plt.show()
+        plot_idx_record(0)
 
-    plot_idx_record(0, record)
-    plot_idx_record(0+421, record)
-    plot_idx_record(1, record)
-    plot_idx_record(1+421, record)
-    plot_idx_record(2, record)
-    plot_idx_record(2+421, record)
-    plot_idx_record(3, record)
-    plot_idx_record(3+421, record)
-    plot_idx_record(4, record)
-    plot_idx_record(4+421, record)
+        num_images = 421
+        if augment_horizontally:
+            plot_idx_record(0+num_images)
 
+        plot_idx_record(1)
 
-#    plot_idx_record(5, record)
-#    plot_idx_record(6, record)
-#    plot_idx_record(7, record)
-#    plot_idx_record(8, record)
-#    plot_idx_record(9, record)
+        if augment_horizontally:
+            plot_idx_record(1+num_images)
 
+        plot_idx_record(2)
+
+        if augment_horizontally:
+            plot_idx_record(2+num_images)
+
+        plot_idx_record(3)
+
+        if augment_horizontally:
+            plot_idx_record(3+num_images)
+
+        plot_idx_record(4)
+
+        if augment_horizontally:
+            plot_idx_record(4+num_images)
+
+    if parsed_args.show_sample:
+        show_sample_images()
 

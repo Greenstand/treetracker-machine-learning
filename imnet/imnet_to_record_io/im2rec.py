@@ -289,6 +289,10 @@ def parse_args():
     cgroup.add_argument('--no-shuffle', dest='shuffle', action='store_false',
                         help='If this is passed, \
         im2rec will not randomize the image order in <prefix>.lst')
+    cgroup.add_argument('--augment-horizontally', type=bool)
+
+
+
     rgroup = parser.add_argument_group('Options for creating database')
     rgroup.add_argument('--pass-through', action='store_true',
                         help='whether to skip transformation and save image as is')
@@ -330,6 +334,7 @@ if __name__ == '__main__':
         files = [os.path.join(working_dir, fname) for fname in os.listdir(working_dir)
                     if os.path.isfile(os.path.join(working_dir, fname))]
         count = 0
+
         for fname in files:
             if fname.startswith(args.prefix) and fname.endswith('.lst'):
                 print('Creating .rec file from', fname, 'in', working_dir)
@@ -384,22 +389,20 @@ if __name__ == '__main__':
                             image_encode(args, image_idx, item, q_out, img)
                             image_idx += 1
 
-                            # horizontal flip
-                            flipped_img = cv2.flip(img, 1)
-                            import image_utils
-                            flipped_item = item
-                            flipped_item[4:] = image_utils.flip_bbox(flipped_item[4:])
-                            image_encode(args, image_idx, flipped_item, augmented_images_q_out, flipped_img)
+                            if args.augment_horizontally:
+                                # horizontal flip
+                                flipped_img = cv2.flip(img, 1)
+                                import image_utils
+                                flipped_item = item
+                                flipped_item[4:] = image_utils.flip_bbox(flipped_item[4:])
+                                image_encode(args, image_idx, flipped_item, augmented_images_q_out, flipped_img)
 
 
                         if q_out.empty():
                             continue
                         _, s, _ = q_out.get()
 
-                        # with this edit we write the shuffled dataset, since item[0]
-                        # is the original idx in the pre-shuffled dataset
-
-                        #record.write_idx(item[0], s)
+                        # image_idx needed to shuffle the dataset at this stage
                         record.write_idx(image_idx, s)
 
                         if cnt % 1000 == 0:

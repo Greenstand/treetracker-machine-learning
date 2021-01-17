@@ -188,48 +188,6 @@ class ImnetDb(Imdb):
             temp.append(label)
         return temp
 
-    def get_result_file_template(self):
-        """
-        this is a template
-        VOCdevkit/results/VOC2007/Main/<comp_id>_det_test_aeroplane.txt
-        Returns:
-        ----------
-            a string template
-        """
-        res_file_folder = os.path.join(self.devkit_path, 'results', 'VOC' + self.year, 'Main')
-        comp_id = self.config['comp_id']
-        filename = comp_id + '_det_' + self.image_set + '_{:s}.txt'
-        path = os.path.join(res_file_folder, filename)
-        return path
-
-    def write_pascal_results(self, all_boxes):
-        """
-        write results files in pascal devkit path
-        Parameters:
-        ----------
-        all_boxes: list
-            boxes to be processed [bbox, confidence]
-        Returns:
-        ----------
-        None
-        """
-        for cls_ind, cls in enumerate(self.classes):
-            print('Writing {} VOC results file'.format(cls))
-            filename = self.get_result_file_template().format(cls)
-            with open(filename, 'wt') as f:
-                for im_ind, index in enumerate(self.image_set_index):
-                    dets = all_boxes[im_ind]
-                    if dets.shape[0] < 1:
-                        continue
-                    h, w = self._get_imsize(self.image_path_from_index(im_ind))
-                    # the VOCdevkit expects 1-based indices
-                    for k in range(dets.shape[0]):
-                        if (int(dets[k, 0]) == cls_ind):
-                            f.write('{:s} {:.3f} {:.1f} {:.1f} {:.1f} {:.1f}\n'.
-                                    format(index, dets[k, 1],
-                                           int(dets[k, 2] * w) + 1, int(dets[k, 3] * h) + 1,
-                                           int(dets[k, 4] * w) + 1, int(dets[k, 5] * h) + 1))
-
     def get_files_recursively(self, dataset_folder, classnames, images_path, bb_path, extension, bb_extension):
 
         # given FOLDER, write a file with all file names contained in FOLDER, recursively
@@ -295,15 +253,6 @@ def get_labels_from_file(label_file, classes):
         # if not self.config['use_difficult'] and difficult == 1:
         #     continue
         cls_name_idx = obj.find('name').text
-
-        #cls_name = convert_to_species(cls_name_idx)
-
-        #from imnet_classes import get_default_synsets
-        #default_synsets = get_default_synsets()
-
-        #if default_synsets[cls_name] != cls_name_idx:
-        #    raise Exception('Wrong class per class {} idx {}!.'.format(cls_name, cls_name_idx))
-
         cls_name = convert_to_tree_nontree(cls_name_idx)
 
         if cls_name not in classes:
@@ -442,7 +391,6 @@ def convert_to_tree_nontree(cls_name):
         return 'tree' # 'Logwood'
     else:
         return cls_name
-
 
 def corresponding_image_exists(f, images_folder, subfolder, images_extension):
     return os.path.exists(os.path.join(images_folder, subfolder, f) + images_extension)
