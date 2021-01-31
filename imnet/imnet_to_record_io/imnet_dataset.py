@@ -25,15 +25,14 @@ import cv2
 
 class ImnetDb(Imdb):
     """
-    Implementation of Imdb for Pascal VOC datasets
+    Implementation of Imdb for Imnet dataset
     Parameters:
     ----------
-    image_set : str
-        set to be used, can be train, val, trainval, test
-    year : str
-        year of dataset, can be 2007, 2010, 2012...
-    devkit_path : str
-        devkit path of VOC dataset
+    dataset_path : str
+        set to be used, path to dataset
+    tree_vs_nontree : boolean
+        if false, then loads the specific class for each bounding box, 
+        if true, then loads only if a box contains a tree or not
     shuffle : boolean
         whether to initial shuffle the image list
     is_train : boolean
@@ -43,8 +42,6 @@ class ImnetDb(Imdb):
     def __init__(self, dataset_path, tree_vs_nontree, shuffle=False, is_train=False,
                  names='imnet.names'):
 
-        # init_name = 'voc_' + year + '_' + image_set
-        # init_name = 'imnet_' + image_set
         init_name = 'imnet_dataset'
         super(ImnetDb, self).__init__(init_name)
         # self.image_set = image_set
@@ -109,8 +106,6 @@ class ImnetDb(Imdb):
         ----------
         entire list of images specified in the setting
         """
-
-        # image_set_index_file = os.path.join(self.data_path, 'ImageSets', 'Main', self.image_set + '.txt')
 
         image_set_index_file = os.path.join(self.data_path, data_filenames_path)
 

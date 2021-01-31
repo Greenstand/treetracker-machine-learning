@@ -56,8 +56,8 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--prefix', help='prefix which precedes the output io file')
-    parser.add_argument('--folder', help='target folder to store the output io file')
+    parser.add_argument('--prefix', default="",  help='prefix which precedes the output io file')
+    parser.add_argument('--folder', default="./", help='target folder to store the output io file')
     parser.add_argument('--augment-horizontally', type=bool, default=False, help='boolean to decide whether to augment horizontally the images')
     parser.add_argument('--show-sample', type=bool, default=False, help='boolean to show images from the dataset')
     parsed_args = parser.parse_args()
@@ -66,11 +66,8 @@ if __name__ == "__main__":
     target_folder = parsed_args.folder
     augment_horizontally = parsed_args.augment_horizontally
 
-    if target_folder is None:
-        target_folder = "/datasets/greenstand/data/imnet2"
-
     # use all species -> set to 'all' instead of a list
-    synsets = select_synsets(['judas', 'palm', 'pine', 'fig'])
+    synsets = select_synsets(['judas', 'palm', 'pine', 'fig', 'china tree'])
 
     cls_names_file = 'imnet.names'
     write_cls_names_file(os.path.join(target_folder, cls_names_file), synsets)
