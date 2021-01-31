@@ -56,18 +56,27 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--prefix', default="",  help='prefix which precedes the output io file')
-    parser.add_argument('--folder', default="./", help='target folder to store the output io file')
+    parser.add_argument('--prefix', type=str, default="",  help='prefix which precedes the output io file')
+    parser.add_argument('--folder', type=str, default="./", help='target folder to store the output io file')
     parser.add_argument('--augment-horizontally', type=bool, default=False, help='boolean to decide whether to augment horizontally the images')
     parser.add_argument('--show-sample', type=bool, default=False, help='boolean to show images from the dataset')
+    parser.add_argument('--data', type=str, default=None, help='"all for including every class"')
     parsed_args = parser.parse_args()
 
     prefix = parsed_args.prefix
     target_folder = parsed_args.folder
     augment_horizontally = parsed_args.augment_horizontally
 
-    # use all species -> set to 'all' instead of a list
-    synsets = select_synsets(['judas', 'palm', 'pine', 'fig', 'china tree'])
+    default_classes = ['judas', 'palm', 'pine', 'fig', 'china tree']
+    
+    if parsed_args.data is None:
+        target_classes = default_classes
+    elif parsed_args.data == 'all':
+        target_classes = 'all'
+    else:
+        raise RuntimeError("data option can either be None or 'all'") 
+    
+    synsets = select_synsets(target_classes)
 
     cls_names_file = 'imnet.names'
     write_cls_names_file(os.path.join(target_folder, cls_names_file), synsets)

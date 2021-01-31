@@ -107,7 +107,7 @@ class ImnetDb(Imdb):
         entire list of images specified in the setting
         """
 
-        image_set_index_file = os.path.join(self.data_path, data_filenames_path)
+        image_set_index_file = data_filenames_path
 
         assert os.path.exists(image_set_index_file), 'Path does not exist: {}'.format(image_set_index_file)
 
