@@ -5,5 +5,5 @@
 *_pycache_*
 *virtual_env/*
 data/*
-
+*.ini
 *.idea/*
