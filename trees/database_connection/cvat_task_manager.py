@@ -1,9 +1,7 @@
 
 import os
 
-cvat_cli_script = "/home/dalsa90/projects/cvat/utils/cli/cli.py"
-
-def create_new_cvat_task(cvat_params, img_urls, json_labels_file_name, task_name="my_newtask"):
+def create_new_cvat_task(cvat_cli_script,cvat_params, img_urls, json_labels_file_name, task_name):
 
     all_image_urls = ""
 
@@ -21,7 +19,7 @@ def create_new_cvat_task(cvat_params, img_urls, json_labels_file_name, task_name
     os.system(cvat_call)
 
 
-def get_current_cvat_tasks(cvat_params):
+def get_current_cvat_tasks(cvat_cli_script, cvat_params):
 
     cvat_call = cvat_cli_script \
                 + ' --auth ' + cvat_params['auth'] + ':' + cvat_params['password'] + ' '\

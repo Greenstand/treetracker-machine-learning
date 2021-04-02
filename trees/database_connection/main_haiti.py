@@ -7,7 +7,7 @@ import cvat_task_manager
 from config import config
 
 """
-This script requires to have a separate file called "credentials.ini" with credentials to create the ssh tunnel, 
+This script requires to have a separate file called "database.ini" with credentials to create the ssh tunnel, 
 to connect to the database and to create cvat tasks.
 
 [postgresql]
@@ -72,22 +72,16 @@ def create_new_cvat_task_list(results):
 
 cvat_cli_script = "/home/dalsa90/projects/cvat/utils/cli/cli.py"
 
+default_labels = ["HAS_TREE", "NO_TREE"]
 
 def get_haiti_species():
 
-    default_labels = ["HAS_TREE", "NO_TREE"]
-    haiti_species = ["OTHER", "PERSAMER", "CATALONG", "CEDRODOR", "MANGINDI"]
+    haiti_species = ["UNKNOWN", "ACACAURI", "ANACOCCI", "ANNOMURI", "ARTOALTA", \
+                     "CATALONG", "CEDRODOR", "CITR0000", "COCONUCI", "INDE0002", \
+                     "INGAFEUI", "MANGINDI", "MANIZAPO", "MORIOLEI", "PERSAMER", \
+                     "PSIDGUAJ", "TAMAINDI", "TERMCATA", "THEOCACA"]
 
     return default_labels + haiti_species
-
-    """
-    return [ \
-        {"name": "OTHER", "attributes": []}, \
-        {"name": "PERSAMER", "attributes": []}, \
-        {"name": "CATALONG", "attributes": []}, \
-        {"name": "CEDRODOR", "attributes": []}, \
-        {"name": "MANGINDI", "attributes": []} ]
-    """
 
 
 def create_json_labels(working_folder, species):
@@ -109,35 +103,30 @@ def create_json_labels(working_folder, species):
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    working_folder = '/home/dalsa90/projects/greenstand/greenstand_data_analysis/trees/database_connection/'
 
-    parser.add_argument('--restart-logging', type=bool, default=False, help='boolean to delete previous logging and start pulling image urls from scratch')
+    parser.add_argument('--restart-logging', type=int, default=0, help='boolean to delete previous logging and start pulling image urls from scratch')
     parser.add_argument('--test-images', type=str, default="all", help='Number of images to test with, "all" for all images')
-    parser.add_argument('--call-cvat-cli', type=bool, default=False, help='"all for including every class"')
-    parser.add_argument('--data', type=str, default=None, help='"all for including every class"')
+    parser.add_argument('--cvat-cli', type=str, default='./cli.py', help='Path to cli.py cvat script')
+    parser.add_argument('--create-cvat-task', type=int, default=0, help='boolean: create cvat task or not')
+    parser.add_argument('--working-folder', type=str, default='./', help='path to folder where databases.ini is and for saving new files.')
     parsed_args = parser.parse_args()
+
+    working_folder = parsed_args.working_folder
 
     log_file_name = working_folder + "log_queries.txt"
     img_urls_file_name = working_folder + "img_urls.txt"
-
-    test_images = parsed_args.test_images
-
-    if test_images != "all":
-        test_images = int(test_images)
+    haiti_labels_file_name = os.path.join(working_folder, "haiti_labels.json")
 
     if parsed_args.restart_logging:
-
         if os.path.exists(log_file_name):
             os.remove(log_file_name)
         if os.path.exists(img_urls_file_name):
             os.remove(img_urls_file_name)
         if os.path.exists(img_urls_file_name):
-            os.remove(os.path.join(working_folder, "haiti_labels.json"))
+            os.remove(haiti_labels_file_name)
 
     if os.path.exists(log_file_name):
         with open(log_file_name, "r") as f:
-            this_timestamp = 0
-
             # read all logged timestamps
             lines = f.readlines()
             # extract last timestamp used to
@@ -149,7 +138,7 @@ if __name__ == '__main__':
         with open(log_file_name, "a") as f:
             f.write(last_timestamp + "\n")
 
-    credentials_file = working_folder + 'credentials.ini'
+    credentials_file = working_folder + 'database.ini'
     tunnel = db_connection.create_ssh_tunnel(credentials_file)
     tunnel.start()
     (connection, cur) = db_connection.connect(credentials_file)
@@ -159,26 +148,32 @@ if __name__ == '__main__':
 
     if len(results) > 0:
 
+        test_images = parsed_args.test_images
+
+        if test_images != "all":
+            test_images = int(test_images)
+            results = results[:test_images]
+
         images_urls = create_new_cvat_task_list(results)
         update_query_log(log_file_name, results)
 
         with open(img_urls_file_name, "a") as f:
-            if test_images != "all":
-                images_urls = images_urls[:test_images]
 
             for this_url in images_urls:
                 f.write(this_url + "\n")
+    else:
+        print("No images left in the db.")
 
     db_connection.close_connection(connection, cur)
     tunnel.close()
 
-    if parsed_args.call_cvat_cli:
+    if parsed_args.create_cvat_task:
 
         haiti_species = get_haiti_species()
         json_labels_file_name = create_json_labels(working_folder, haiti_species)
 
         cvat_params = config(credentials_file, 'cvat_local')
-#        cvat_task_manager.get_current_cvat_tasks(cvat_params)
-        cvat_task_manager.create_new_cvat_task(cvat_params, images_urls, json_labels_file_name)
+        cvat_task_manager.get_current_cvat_tasks(parsed_args.cvat_cli, cvat_params)
+        cvat_task_manager.create_new_cvat_task(parsed_args.cvat_cli, cvat_params, images_urls, json_labels_file_name, "name_of_new_task")
 
 
