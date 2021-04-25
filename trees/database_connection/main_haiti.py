@@ -44,14 +44,6 @@ def get_haiti_trees_query(last_img_time):
             + str(last_img_time) \
             + "ORDER BY date_part('epoch', time_created) ASC;"
 
-"""
-def get_haiti_trees_species_query():
-
-    return "SELECT DISTINCT tree_species.name \
-           FROM trees \
-	       JOIN tree_species ON species_id = tree_species.id \
-           WHERE planter_id IN (select id from planter where organization_id = 194);"
-"""
 
 def update_query_log(file_name,results):
     new_last_timestamp = int(results[-1][2])
@@ -69,8 +61,6 @@ def create_new_cvat_task_list(results):
 
     return img_urls
 
-
-cvat_cli_script = "/home/dalsa90/projects/cvat/utils/cli/cli.py"
 
 default_labels = ["HAS_TREE", "NO_TREE"]
 
@@ -167,13 +157,14 @@ if __name__ == '__main__':
     db_connection.close_connection(connection, cur)
     tunnel.close()
 
-    if parsed_args.create_cvat_task:
+    cvat_params = config(credentials_file, 'cvat_local')
+
+    cvat_mgr = cvat_task_manager.CvatManager(parsed_args.cvat_cli, cvat_params)
+    cvat_mgr.get_current_cvat_tasks()
+
+    if parsed_args.create_cvat_task and len(images_urls) > 0:
 
         haiti_species = get_haiti_species()
         json_labels_file_name = create_json_labels(working_folder, haiti_species)
-
-        cvat_params = config(credentials_file, 'cvat_local')
-        cvat_task_manager.get_current_cvat_tasks(parsed_args.cvat_cli, cvat_params)
-        cvat_task_manager.create_new_cvat_task(parsed_args.cvat_cli, cvat_params, images_urls, json_labels_file_name, "name_of_new_task")
-
+        cvat_mgr.create_new_cvat_task(images_urls, json_labels_file_name, "haiti_annotations_")
 
