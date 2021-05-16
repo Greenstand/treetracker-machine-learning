@@ -8,6 +8,10 @@
         "attributes": []
     },
     {
+        "name": "SOIL",
+        "attributes": []
+    },
+    {
         "name": "UNKNOWN",
         "attributes": []
     },
@@ -21,6 +25,10 @@
     },
     {
         "name": "ANNOMURI",
+        "attributes": []
+    },
+    {
+        "name": "ANNOSQUA",
         "attributes": []
     },
     {
@@ -44,7 +52,19 @@
         "attributes": []
     },
     {
+        "name": "COLUARBO",
+        "attributes": []
+    },
+    {
+        "name": "CORDALLI",
+        "attributes": []
+    },
+    {
         "name": "INDE0002",
+        "attributes": []
+    },
+    {
+        "name": "INDE0003",
         "attributes": []
     },
     {
@@ -69,6 +89,10 @@
     },
     {
         "name": "PSIDGUAJ",
+        "attributes": []
+    },
+    {
+        "name": "SIMAGLAU",
         "attributes": []
     },
     {
