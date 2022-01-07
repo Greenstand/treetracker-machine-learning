@@ -7,6 +7,7 @@ import db_connection
 from config import config
 from datetime import date
 
+from manage_log_file import LogFileManager
 
 cvat_base_dir = os.path.abspath('./cvat_greenstand')  # should point to the installation of cvat
 sys.path.insert(1, os.path.join(cvat_base_dir, 'cvat/utils/cli'))
@@ -50,14 +51,6 @@ def get_haiti_trees_query(last_img_time):
             WHERE planter_id IN (select id from planter where organization_id = 194) AND date_part('epoch', time_created) > " \
             + str(last_img_time) \
             + "ORDER BY date_part('epoch', time_created) ASC;"
-
-
-def update_query_log(file_name,results):
-    new_last_timestamp = int(results[-1][2])
-
-    with open(file_name, "a") as f:
-        f.write(str(new_last_timestamp) + "\n")
-
 
 def create_new_cvat_task_list(results):
 
@@ -109,34 +102,32 @@ if __name__ == '__main__':
     parser.add_argument('--images-per-cvat-task', type=int, default=0, help='int: number of images per cvat task.')
     parser.add_argument('--working-folder', type=str, default='./', help='path to folder where databases.ini is and for saving new files.')
     parser.add_argument('--prefix', type=str, default='', help='prefix to be appended.')
+    parser.add_argument('--assign-to', type=str, default='', help='Assignee for the task.')
     parsed_args = parser.parse_args()
 
     working_folder = parsed_args.working_folder
+    restart_logging = parsed_args.restart_logging
 
-    log_file_name = os.path.join(working_folder, "log_queries.txt")
     img_urls_file_name = os.path.join(working_folder, parsed_args.prefix + "img_urls.txt")
     haiti_labels_file_name = os.path.join(working_folder, "haiti_labels.json")
 
-    if parsed_args.restart_logging:
-        if os.path.exists(log_file_name):
-            os.remove(log_file_name)
+    images_per_task = parsed_args.images_per_cvat_task
+
+    if images_per_task <= 0:
+        raise Exception("Images per task must be positive.")
+
+    assignee = parsed_args.assign_to
+
+    if restart_logging:
         if os.path.exists(img_urls_file_name):
             os.remove(img_urls_file_name)
         if os.path.exists(img_urls_file_name):
             os.remove(haiti_labels_file_name)
 
-    if os.path.exists(log_file_name):
-        with open(log_file_name, "r") as f:
-            # read all logged timestamps
-            lines = f.readlines()
-            # extract last timestamp used to
-            # create a task and remove '\n'
-            last_timestamp = lines[-1][:-1]
+    log_file_name = "log_queries.txt"
 
-    else:
-        last_timestamp = "0"
-        with open(log_file_name, "a") as f:
-            f.write(last_timestamp + "\n")
+    log_file_manager = LogFileManager(working_folder, restart_logging, log_file_name)
+    last_timestamp = log_file_manager.get_last_timestamp()
 
     credentials_file = os.path.join(working_folder, 'database.ini')
     tunnel = db_connection.create_ssh_tunnel(credentials_file)
@@ -149,8 +140,6 @@ if __name__ == '__main__':
     db_connection.close_connection(connection, cur)
     tunnel.close()
 
-    images_per_task = parsed_args.images_per_cvat_task
-
     if len(results) > 0:
 
         test_images = parsed_args.test_images
@@ -160,34 +149,33 @@ if __name__ == '__main__':
         else:
             test_images = len(results)
 
-        if images_per_task > 0:
-            # Remove images which do not fit new task.
-            # They'll be used for next task creation.
-            test_images = test_images - (test_images % images_per_task)
-            results = results[:test_images]
+        # Remove images which do not fit new task.
+        # They'll be used for next task creation.
+        test_images = test_images - (test_images % images_per_task)
+        results = results[:test_images]
 
-            numOfNewTasks = int(test_images / images_per_task)
+        numOfNewTasks = int(test_images / images_per_task)
 
-            images_urls = create_new_cvat_task_list(results)
-            update_query_log(log_file_name, results)
+        images_urls = create_new_cvat_task_list(results)
+        log_file_manager.update_query_log(results)
 
-            with open(img_urls_file_name, "a") as f:
-                for this_url in images_urls:
-                    f.write(this_url + "\n")
+        with open(img_urls_file_name, "a") as f:
+            for this_url in images_urls:
+                f.write(this_url + "\n")
 
-            cvat_params = config(credentials_file, 'cvat_local')
+        cvat_params = config(credentials_file, 'cvat_local')
 
-            cvat_mgr = cvat_task_manager.CvatManager(parsed_args.cvat_cli, cvat_params)
-            cvat_mgr.get_current_cvat_tasks()
+        cvat_mgr = cvat_task_manager.CvatManager(parsed_args.cvat_cli, cvat_params)
+        cvat_mgr.get_current_cvat_tasks()
 
-            if len(images_urls) > 0:
-                haiti_species = get_haiti_species()
-                (labels_json_file, labels) = create_json_labels(working_folder, haiti_species)
-                task_prefix = parsed_args.prefix + "haiti_" + str(date.today()) + "_" + "_task_"
+        if len(images_urls) > 0:
+            haiti_species = get_haiti_species()
+            (labels_json_file, labels) = create_json_labels(working_folder, haiti_species)
+            task_prefix = parsed_args.prefix + "haiti_" + str(date.today()) + "_" + "_task_"
 
-                for i in range(numOfNewTasks):
-                    task_name = task_prefix + str(i)
-                    cvat_mgr.create_new_cvat_task(images_urls[i*images_per_task:(i+1)*images_per_task ], labels_json_file, task_name)
+            for i in range(numOfNewTasks):
+                task_name = task_prefix + str(i)
+                cvat_mgr.create_new_cvat_task(images_urls[i*images_per_task:(i+1)*images_per_task ], labels_json_file, task_name)
 
     else:
         print("No images left in the db.")
