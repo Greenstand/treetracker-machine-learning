@@ -3,16 +3,20 @@
 import os
 import sys
 import argparse
-import db_connection
-from config import config
 from datetime import date
 
-from manage_log_file import LogFileManager
-
-cvat_base_dir = os.path.abspath('./cvat_greenstand')  # should point to the installation of cvat
-sys.path.insert(1, os.path.join(cvat_base_dir, 'cvat/utils/cli'))
-
+cvat_base_dir = os.path.abspath('./cvat_greenstand/')  # should point to the installation of cvat
+sys.path.append(os.path.join(cvat_base_dir, 'cvat/utils/cli'))
 import cvat_task_manager
+
+annotation_tools_base_dir = os.path.abspath('./greenstand/greenstand_data_analysis/annotation_tools/')
+sys.path.append(os.path.join(annotation_tools_base_dir))
+
+import annotation_tools_core.db_connection as db_connection
+from annotation_tools_core.manage_log_file import LogFileManager
+from annotation_tools_core.config import config
+
+
 
 """
 This script requires to have a separate file called "database.ini" with credentials to create the ssh tunnel, 
@@ -79,7 +83,7 @@ def get_haiti_species():
 def create_json_labels(working_folder, species):
 
     import json
-    json_labels_file_name = os.path.join(working_folder, "haiti_labels.json")
+    json_labels_file_name = os.path.join(working_folder, "tree_projects/haiti_labels.json")
 
     species_list = []
 
@@ -108,6 +112,14 @@ if __name__ == '__main__':
     working_folder = parsed_args.working_folder
     restart_logging = parsed_args.restart_logging
 
+    log_subfolder = "log_files/"
+    log_folder = os.path.join(working_folder, log_subfolder)
+
+    if not os.path.exists(log_folder):
+        os.makedirs(log_folder)
+
+    log_file_name = log_subfolder + "log_queries.txt"
+
     img_urls_file_name = os.path.join(working_folder, parsed_args.prefix + "img_urls.txt")
     haiti_labels_file_name = os.path.join(working_folder, "haiti_labels.json")
 
@@ -123,8 +135,6 @@ if __name__ == '__main__':
             os.remove(img_urls_file_name)
         if os.path.exists(img_urls_file_name):
             os.remove(haiti_labels_file_name)
-
-    log_file_name = "log_queries.txt"
 
     log_file_manager = LogFileManager(working_folder, restart_logging, log_file_name)
     last_timestamp = log_file_manager.get_last_timestamp()

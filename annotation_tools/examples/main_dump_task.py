@@ -1,10 +1,14 @@
 
 import argparse
-from config import config
-import os, sys
+import os
+import sys
+
+annotation_tools_base_dir = os.path.abspath('./greenstand/greenstand_data_analysis/annotation_tools/')
+sys.path.append(os.path.join(annotation_tools_base_dir))
+from annotation_tools_core.config import config
 
 cvat_base_dir = os.path.abspath('./cvat_greenstand')  # should point to the installation of cvat
-sys.path.insert(1, os.path.join(cvat_base_dir, 'cvat/utils/cli'))
+sys.path.append(os.path.join(cvat_base_dir, 'cvat/utils/cli'))
 
 import cvat_task_manager
 

@@ -2,7 +2,7 @@
 from configparser import ConfigParser
 
 
-def config(filename,section):
+def config(filename, section):
     # create a parser
     parser = ConfigParser()
     # read config file
