@@ -15,6 +15,6 @@ Find out more about Greenstand at https://greenstand.org/home, or contact Shubho
 
 ## Operations
 Progress on our work is tracked in the Projects section of the repository; if contributing, please add new projects or add notes to existing ones. Best practice 
-is to fork the repository if working locally and merge to master at the completion of a task, especially if collaborating with other devs. However, we often use Google Colab instead for working with .ipynb notebooks on the cloud. If that's the case for your work, please upload the notebook after finishing so others can access in the future. Lastly, if bugs in code 
+is to fork the repository if working locally and merge to master at the completion of a task, especially if collaborating with other devs. However, we often use Google Colab or AWS notebook instances instead for working with .ipynb notebooks on the cloud. If that's the case for your work, please upload the notebook after finishing so others can access in the future. Lastly, if bugs in code 
 or processes are found, please open an issue and/or notify someone via Slack. 
 
