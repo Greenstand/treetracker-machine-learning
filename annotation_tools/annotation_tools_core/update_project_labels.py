@@ -13,16 +13,17 @@ default_labels = ["HAS_TREE",
 
 def download_raw_tree_species(tree_project_folder):
     tree_species_url = "https://raw.githubusercontent.com/Greenstand/Tree_Species/master/tree_species.xml"
-    print("Download started.")
+    print("Downloading herbarium.")
 
     raw_tree_species_file = os.path.join(tree_project_folder, "raw_haiti_tree_species.xml")
 
-    filename, headers = urllib.request.urlretrieve(tree_species_url, filename=raw_tree_species_file)
+    herbarium_filename, headers = urllib.request.urlretrieve(tree_species_url, filename=raw_tree_species_file)
+    print("Herbarium downloaded.")
 
-    print("Download completeed.")
-    return filename
+    return herbarium_filename
 
-def update_project_labels(working_folder,project_name):
+def update_project_labels(working_folder, project_name):
+    """Create a json label file with the updated tree species from the herbarium."""
 
     tree_project_folder = os.path.join(working_folder, "tree_projects/")
 
@@ -59,3 +60,5 @@ def update_project_labels(working_folder,project_name):
     species_json_string = json.dumps(species_to_be_dumped, indent=4)
     with open(target_file_path, 'w') as outfile:
         outfile.write(species_json_string)
+
+    return target_file_path

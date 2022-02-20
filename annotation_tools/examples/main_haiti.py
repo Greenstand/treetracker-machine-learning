@@ -15,7 +15,7 @@ sys.path.append(os.path.join(annotation_tools_base_dir))
 import annotation_tools_core.db_connection as db_connection
 from annotation_tools_core.manage_log_file import LogFileManager
 from annotation_tools_core.config import config
-
+from annotation_tools_core.update_project_labels import update_project_labels
 
 
 """
@@ -66,36 +66,6 @@ def create_new_cvat_task_list(results):
     return img_urls
 
 
-default_labels = ["HAS_TREE", "NO_TREE", "SOIL", "UNKNOWN"]
-
-def get_haiti_species():
-
-    haiti_species = ["ACACAURI", "ANACOCCI", "ANNOMURI", "ANNOSQUA", \
-                     "ARTOALTA", "CATALONG", "CEDRODOR", "CITR0000", \
-                     "COCONUCI", "COLUARBO", "CORDALLI", "INDE0002", \
-                     "INDE0003", "INGAFEUI",  "MANGINDI", "MANIZAPO", \
-                     "MORIOLEI", "PERSAMER", "PSIDGUAJ", "SIMAGLAU", \
-                     "TAMAINDI", "TERMCATA", "THEOCACA"]
-
-    return default_labels + haiti_species
-
-
-def create_json_labels(working_folder, species):
-
-    import json
-    json_labels_file_name = os.path.join(working_folder, "tree_projects/haiti_labels.json")
-
-    species_list = []
-
-    for iPlant in species:
-        species_list.append({"name": iPlant, "attributes": []})
-
-    with open(json_labels_file_name, "w") as f:
-        json.dump(species_list, f, indent=4)
-
-    return (json_labels_file_name, species_list)
-
-
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
@@ -111,6 +81,8 @@ if __name__ == '__main__':
 
     working_folder = parsed_args.working_folder
     restart_logging = parsed_args.restart_logging
+
+    project_name = 'haiti'
 
     log_subfolder = "log_files/"
     log_folder = os.path.join(working_folder, log_subfolder)
@@ -174,14 +146,11 @@ if __name__ == '__main__':
                 f.write(this_url + "\n")
 
         cvat_params = config(credentials_file, 'cvat_local')
-
         cvat_mgr = cvat_task_manager.CvatManager(parsed_args.cvat_cli, cvat_params)
-        cvat_mgr.get_current_cvat_tasks()
 
         if len(images_urls) > 0:
-            haiti_species = get_haiti_species()
-            (labels_json_file, labels) = create_json_labels(working_folder, haiti_species)
-            task_prefix = parsed_args.prefix + "haiti_" + str(date.today()) + "_" + "_task_"
+            labels_json_file = update_project_labels(working_folder, project_name)
+            task_prefix = parsed_args.prefix + project_name + "_" + str(date.today()) + "_task_"
 
             for i in range(numOfNewTasks):
                 task_name = task_prefix + str(i)
