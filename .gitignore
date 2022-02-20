@@ -1,10 +1,10 @@
 *_db/*
 *AppEnv/*
 *.csv*
-<<<<<<< HEAD
 *_pycache_*
 *virtual_env/*
 data/*
 *.ini
 *.idea/*
 *.txt
+*/tree_projects/*
