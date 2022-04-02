@@ -18,4 +18,5 @@ if __name__ == '__main__':
     parsed_args = parser.parse_args()
     working_folder = parsed_args.working_folder
     project_name = parsed_args.project_name
-    update_project_labels(working_folder, project_name)
+    json_labels_path = os.path.abspath(update_project_labels(working_folder, project_name))
+    print(f"Abs path to updated .json file: {json_labels_path}")
