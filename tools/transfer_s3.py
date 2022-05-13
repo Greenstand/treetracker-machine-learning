@@ -1,12 +1,9 @@
-import torch
+
 import numpy as np
 import pandas as pd
 import os
 import urllib
 import time
-
-from PIL import Image
-
 
 import requests
 import json
@@ -15,7 +12,6 @@ import logging
 
 
 
-torch.backends.cudnn.benchmark = True
 
 def pipe_transfer(df_row):
     syscall = "wget  \"%s\" | aws s3 cp %s %s"%(df_row["url"], df_row["imname"], os.path.join(s3_dest, df_row["class"], df_row["imname"]))
@@ -24,7 +20,7 @@ def pipe_transfer(df_row):
     return code == 0
 
 # Directly downloads the dataurl variable (link to Cam's training set) to datadir
-datadir = "/home/ec2-user/SageMaker/treetracker-machine-learning/sample_datasets/Liberia/training.psv"
+datadir = "/home/ec2-user/data/freetown_training.psv"
 dataurl =  "https://raw.githubusercontent.com/Greenstand/Tree_Species/master/training/training_freetown_tagged.psv"
 data_update = requests.get(dataurl)
 
@@ -42,7 +38,6 @@ data.columns = ["class", "imname"]
 data["url"] = baseurl + data["imname"]
 print (data.shape[0], " samples")
 
-os.system.call("!wget \"https://treetracker-production-images.s3.eu-central-1.amazonaws.com/2021.10.15.13.16.06_8.419378666666665_-13.25470966666667_fb4be6e3-680c-4b33-b643-6f8f15f44843_IMG_20211005_160208_9009962222668561135.jpg\"")
 original_data_bucket = "treetracker-training-images"
 dataset_key = "freetown" # use this to restrict to a particular directory
 
