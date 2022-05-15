@@ -16,6 +16,9 @@ import logging
 def pipe_transfer(df_row):
     syscall = "wget  \"%s\" -q | aws s3 cp %s %s --quiet"%(df_row["url"], df_row["imname"], os.path.join(s3_dest, df_row["class"], df_row["imname"]))
     code = os.system(syscall)
+    if code == 0:
+        delete_call = "find . -name \"*.jpg\" -type f -delete"
+        os.system(delete_call) # remove wget artifact
     return code
 
 
