@@ -14,14 +14,14 @@ import logging
 
 
 def pipe_transfer(df_row):
-    syscall = "wget  \"%s\" | aws s3 cp %s %s"%(df_row["url"], df_row["imname"], os.path.join(s3_dest, df_row["class"], df_row["imname"]))
+    syscall = "wget  \"%s\" -q | aws s3 cp %s %s --quiet"%(df_row["url"], df_row["imname"], os.path.join(s3_dest, df_row["class"], df_row["imname"]))
     code = os.system(syscall)
-    time.sleep(0.02)
-    return code == 0
+    return code
+
 
 # Directly downloads the dataurl variable (link to Cam's training set) to datadir
-datadir = "/home/ec2-user/data/freetown_training.psv"
-dataurl =  "https://raw.githubusercontent.com/Greenstand/Tree_Species/master/training/training_freetown_tagged.psv"
+datadir = "/home/ec2-user/data/haiti_training.psv"
+dataurl = "https://raw.githubusercontent.com/Greenstand/Tree_Species/master/training/training.psv"
 data_update = requests.get(dataurl)
 
 if data_update.status_code == 200:
@@ -39,13 +39,17 @@ data["url"] = baseurl + data["imname"]
 print (data.shape[0], " samples")
 
 original_data_bucket = "treetracker-training-images"
-dataset_key = "freetown" # use this to restrict to a particular directory
+dataset_key = "haiti" # use this to restrict to a particular directory
 
 s3_dest = 's3://{}/{}/'.format(original_data_bucket, dataset_key)
 
+rows_done = 0
+
 print ("Starting full dataset S3 transfer")
 start = datetime.datetime.now()
+data = data.iloc[rows_done:, :]
 data["s3_transfer_successful"] = data.apply(pipe_transfer, axis=1)
+os.system("find . -name \"*.jpg\" -type f -delete")
 print ("Finished in " , datetime.datetime.now() - start)
 print (data[data["s3_transfer_successful"]], " samples downloaded out of ", data.shape[0])
 
