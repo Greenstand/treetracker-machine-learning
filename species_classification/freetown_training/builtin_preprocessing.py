@@ -57,12 +57,13 @@ def create_path_lists(input_path, val_split, test_split, seed=42):
     imgs = {}
     for class_name in CLASSES:
         if not os.path.exists(os.path.join(input_path, class_name)):
-            logging.warning("Skipping class %s"%class_name, " couldn't find it")
+            logging.info("Skipping class %s"%class_name, " couldn't find it")
             continue
         temp_imgs = os.listdir(os.path.join(input_path, class_name))
+        logging.info("create_path_lists found %s images in class %d"%(class_name, len(temp_imgs)))
         for img_path in temp_imgs:
             if not "tar" in img_path:
-                name = os.path.basename(img_path.split('.')[0])
+                name = os.path.splitext(img_path)[0]
                 full_path = os.path.join(input_path, class_name, img_path)
                 imgs[name] = (class_name, full_path) 
                 # later, we can modify this to change how non-tree species are classified. 
@@ -102,7 +103,7 @@ def image_augmentation(img, transform_params):
     img += np.random.normal(0, 1, (img.size[0], img.size[1], 3)) # num channels should be 3
     return Image.fromarray(np.uint8(img))
     
-def save_from_dataframe(df, transform_params, output_dir):
+def save_from_dataframe(df, output_dir, transform_params):
     '''
     Take a DataFrames produced by create_path_lists above and generates directories. Sagemaker transfers the contents of this local directory upon job 
     completion to S3. 
@@ -113,7 +114,6 @@ def save_from_dataframe(df, transform_params, output_dir):
     saved_images = {}
     preprocessing_fn = image_transforms(transform_params)
     for class_name in CLASSES:
-        logging.info ("Processing class ", class_name)  
         df_subset = df[df["class"] == class_name]
         class_output_path = os.path.join(output_dir, class_name)
         if not os.path.exists(class_output_path):
@@ -121,13 +121,12 @@ def save_from_dataframe(df, transform_params, output_dir):
         for row in df_subset.itertuples():
             name = row.Index
             img = Image.open(row.full_path)
-            img = preprocessing(img)
+            img = preprocessing_fn(img)
             img.save(os.path.join(class_output_path, name + ".jpg"))
             saved_images[name] = os.path.join(class_output_path, name + ".jpg")
     saved_images = pd.DataFrame.from_dict(saved_images, orient="index")
     saved_images.columns = ["path"]
-    df.loc[:, ["class"]].to_csv(os.path.join(output_dir, "labels.csv"))
-    return saved_images.join(df)
+    return saved_images
     
     
         
@@ -156,16 +155,19 @@ def augment_from_dataframe(df, output_dir, transform_params, suffix="_ aug", fra
             frac = fraction_augmented[CLASSES.indexof(class_name)]
         for j in range(int(frac * df_class.shape[0])):
             random_idx = np.random.randint(low=0, high=df_class.shape[0]) # sample an image at random
-            row = df_class.iloc[random_idx, :]
-            name = row.Index
+            row = df_class.iloc[random_idx, :] # weird indexing on purpose to get DF output, not Series
+            name = row.index[0]
+            if j==0: 
+                print (name)
             img = Image.open(row.full_path)
             img = image_augmentation(img, transform_params)
             if os.path.exists(os.path.join(class_output_path, name + suffix + ".jpg")):
                 suffix += "_x"
             img.save(os.path.join(class_output_path, name + suffix + ".jpg"))
-            augmented_images[name ] = os.path.join(class_output_path, name + suffix + ".jpg")
-    # Augmented labels should be same as training labels, so no DF saved
-    return None
+            augmented_images[name] = os.path.join(class_output_path, name + suffix + ".jpg")
+    augmented_images = pd.DataFrame.from_dict(augmented_images, orient="index")
+    augmented_images.columns df.columns
+    return augmented_images
 
 def preprocess(args):
     '''
@@ -214,5 +216,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
     INPUT_PATH = os.path.join(PROCESSING_DIR, args.input_path)
     CLASSES = listdirs(INPUT_PATH) 
+    for c in CLASSES:
+        d = os.path.join(INPUT_PATH, c)
+        logging.info (str(c) + ": " + str(len(os.listdir(d))))
     logging.info("Classes: " + str(CLASSES))
     preprocess(args)
