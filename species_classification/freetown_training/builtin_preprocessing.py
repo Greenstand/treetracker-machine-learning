@@ -131,7 +131,7 @@ def save_from_dataframe(df, output_dir, transform_params):
     
         
 
-def augment_from_dataframe(df, output_dir, transform_params, suffix="_ aug", fraction_augmented=0.4):
+def augment_from_dataframe(df, output_dir, transform_params, suffix="_aug", fraction_augmented=0.4):
     '''
     Perform augmentation similar to save_from_dataframe but with a suffix for augmented images and a predefined subsampling of images to augment, if 
     desirable. 
@@ -155,18 +155,18 @@ def augment_from_dataframe(df, output_dir, transform_params, suffix="_ aug", fra
             frac = fraction_augmented[CLASSES.indexof(class_name)]
         for j in range(int(frac * df_class.shape[0])):
             random_idx = np.random.randint(low=0, high=df_class.shape[0]) # sample an image at random
-            row = df_class.iloc[random_idx, :] # weird indexing on purpose to get DF output, not Series
+            row = df_class.iloc[[random_idx], :] # weird indexing on purpose to get DF output, not Series
             name = row.index[0]
             if j==0: 
                 print (name)
-            img = Image.open(row.full_path)
+            img = Image.open(row.full_path.values[0])
             img = image_augmentation(img, transform_params)
             if os.path.exists(os.path.join(class_output_path, name + suffix + ".jpg")):
                 suffix += "_x"
             img.save(os.path.join(class_output_path, name + suffix + ".jpg"))
             augmented_images[name] = os.path.join(class_output_path, name + suffix + ".jpg")
     augmented_images = pd.DataFrame.from_dict(augmented_images, orient="index")
-    augmented_images.columns df.columns
+    augmented_images.columns =  ["full_path"]
     return augmented_images
 
 def preprocess(args):
