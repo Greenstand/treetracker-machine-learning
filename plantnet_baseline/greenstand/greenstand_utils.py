@@ -254,12 +254,13 @@ class GreenstandLabelledImageDataset(Dataset):
         else:
             self.images = []
             labels = []
+            
             for directory in base_dirs:  # haiti
                 for label in os.listdir(directory):  # list(haiti) -> [ACACAURI...]
                     fname = f"{directory}/{label}"
                     if os.path.isdir(fname):  # ACACAURI -> True
                         for file in os.listdir(fname):  # list(haiti/ACAURI/) -> [image.jpg...]
-                            if file.endswith('.png') or file.endswith('.jpg'):
+                            if file.endswith('.png') or file.endswith('.jpg') or file.endswith('.jfif'):
                                 self.images.append((fname + "/" + file, label))
                                 labels.append(label)
             self.images = np.array(self.images)
