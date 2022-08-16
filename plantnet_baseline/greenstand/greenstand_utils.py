@@ -306,23 +306,41 @@ def visualize_imbalance(dataset_attributes):
     """
     Show number of instances in each class (show excluded classes too)
     """
-    coords = list(range(dataset_attributes['n_classes'] + len(dataset_attributes['invalid_classes'])))
-    heights = list(dataset_attributes['total_instances_per_class'].values()) + [-10 for i in range(len(dataset_attributes['invalid_classes']))]
+    # Get the number of classes - each is a tick mark
+    coords = np.array(list(range(dataset_attributes['n_classes'] + len(dataset_attributes['invalid_classes']))))
+    
+    # Get the number of instances in each class
+    width = 1.00  # the width of the bars
+    heights_train = list(dataset_attributes['class2num_instances']['train'].values()) + [0 for i in range(len(dataset_attributes['invalid_classes']))]
+    heights_val = list(dataset_attributes['class2num_instances']['val'].values()) + [0 for i in range(len(dataset_attributes['invalid_classes']))]
+    heights_test = list(dataset_attributes['class2num_instances']['test'].values()) + [0 for i in range(len(dataset_attributes['invalid_classes']))]
+    
+    # Color classes that were modeled green, others red
     colors = ['g' for i in range(dataset_attributes['n_classes'])] + ['r' for i in range(len(dataset_attributes['invalid_classes']))]
     labels = list(dataset_attributes['class_to_idx'].keys()) + dataset_attributes['invalid_classes']
     
+    # Generate plot
     fig, ax = plt.subplots()
-    fig.set_dpi(100)
-    rects1 = ax.bar(coords, heights, color=colors)
+    fig.set_size_inches(18.5, 10.5)
+    fig.set_dpi(150)
+    fig.set_facecolor('white')
     
+    # Create bars for each data split
+    rects_train = ax.bar(coords - width/4, heights_train, width/4, label='Train')
+    rects_val = ax.bar(coords, heights_val, width/4, label='Val')
+    rects_test = ax.bar(coords + width/4, heights_test, width/4, label='Test')
+    
+    ax.bar_label(rects_train, padding=3)
+    ax.bar_label(rects_val, padding=3)
+    ax.bar_label(rects_test, padding=3)
+
+    # Set labels/legends
     ax.set_ylabel('Num Images')
     ax.set_title('Images per Species')
-    plt.bar_label(ax.containers[0])
+    # plt.bar_label(ax.containers[0])
     ax.set_xticks(coords)
     ax.set_xticklabels(labels, rotation = 45, ha='right')
-    green_patch = mpatches.Patch(color='g', label='Included in model')
-    red_patch = mpatches.Patch(color='r', label='Excluded from model')
-    plt.legend(handles=[green_patch, red_patch])
+    plt.legend()
     plt.show()
     
 
@@ -336,6 +354,7 @@ def visualize_images(dataset):
     width = 20
     height = 20
     fig = plt.figure(figsize=(8, 8))
+    fig.set_facecolor('white')
     columns = 4
     rows = round(len(images) / columns)
     # Create images
