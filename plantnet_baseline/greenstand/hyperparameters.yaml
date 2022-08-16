@@ -1,4 +1,4 @@
-lr: .05 # learning rate to use
+lr: .001 # learning rate to use
 n_epochs: 10 # How many epochs to run
 k: 1 # value of k for computing the topk loss and computing topk accuracy
 model: resnet50 # Select the model you want to train on (other choices: 'resnet50', 'densenet121', 'densenet169', 'mobilenet_v2', 'inception_resnetv2')
@@ -13,7 +13,7 @@ num_workers: 2 # number of workers for the data loader. Default is one. You can 
 # Greenstand specific
 visualize: True # set to True if you want to visualize data and model output
 bucket: treetracker-training-images # this is the bucket where the greenstand images are in S3
-prefixes: haiti/,herbarium/ # csv. list all of the prefixes within that bucket that you want to sync. The assumption is class labels are a sub-directory, and images are within the sub-directories
+prefixes: haiti/,herbarium/,internet_sourced/ # csv. list all of the prefixes within that bucket that you want to sync. The assumption is class labels are a sub-directory, and images are within the sub-directories
 local_path: ../../../data/treetracker-training-images  # this is where the greenstand images will reside on your local machine
 train_test_split: 0.8  # this is the first split done, between training and test
 train_val_split: 0.8 # this split is done on the already split training data to make train and val

@@ -14,7 +14,7 @@ def get_missing_local_files(bucket, prefix, local_dir):
     for key in keys:
         fname = f"{local_dir}/{key}"
         path = Path(fname)
-        if not path.is_file():
+        if not path.is_file() and not path.is_dir():
             missing_keys.append(key)
             
     if len(missing_keys) > 0:
@@ -41,7 +41,8 @@ def download_objects_locally(bucket, prefix, local_dir, keys=None):
         fname = f"{local_dir}/{key}"
         output_file = Path(fname)
         output_file.parent.mkdir(exist_ok=True, parents=True)
-        output_file.write_bytes(s3.get_object(bucket, key))
+        if '.' in key:
+            output_file.write_bytes(s3.get_object(bucket, key))
     
 
 # Classes
