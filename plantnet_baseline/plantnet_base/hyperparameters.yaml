@@ -1,0 +1,11 @@
+lr: .05 # learning rate to use
+n_epochs: 1 # How many epochs to run
+k: 1 # value of k for computing the topk loss and computing topk accuracy
+model: resnet50 # Select the model you want to train on (other choices: 'resnet50', 'densenet121', 'densenet169', 'mobilenet_v2', 'inception_resnetv2')
+root: ../../../data/plantnet_300K/ # specify the root location of the data
+save_name_xp: xp1 # name of the saving file
+seed: 1 # declare the random seed for the training
+batch_size: 256 # how many images in each batch
+mu: 0 # weight decay parameter
+size_image: 256 # default what size the images will be resized to
+num_workers: 4 # number of workers for the data loader. Default is one. You can bring it up. If you have memory errors, set it to 1
