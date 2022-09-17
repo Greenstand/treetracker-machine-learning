@@ -57,7 +57,7 @@ def get_all_local_files(args):
     print("Checking to make sure all local files are present...")
     change = False
     for prefix in args['prefixes']:
-        c = s3_api.get_missing_local_files(args['bucket'], prefix, args['local_path'])
+        c = s3_api.get_missing_local_files(args['bucket'], prefix, args['local_path'], args['sub_dir_limit'])
         change = max(change, c)
     return change
 

@@ -3,11 +3,11 @@ import boto3
 from pathlib import Path
 
 # Functions
-def get_missing_local_files(bucket, prefix, local_dir):
+def get_missing_local_files(bucket, prefix, local_dir, species_limit=None):
     print(f"Checking missing local files based on bucket: {bucket} at prefix {prefix}...")
     # Get S3 objects
     s3 = S3()
-    keys = s3.list_objects(bucket, prefix)
+    keys = s3.list_objects(bucket, prefix, subprefix_limit=species_limit)
     
     # Get local objects
     missing_keys = []
@@ -55,21 +55,40 @@ class S3:
     def get_object(self, bucket, key):
         return self.client.get_object(Bucket=bucket, Key=key)['Body'].read()
     
-    def list_objects(self, bucket, key_prefix=None):
+    def list_objects(self, bucket, key_prefix=None, limit=None, subprefix_limit=None, delimiter=None):
         truncated, marker, keys, kwargs = (True, None, [], {'Bucket': bucket})
+        search_keys = ('Contents','Key')
+        
         if key_prefix:
             kwargs['Prefix'] = key_prefix
+            
+        if delimiter:
+            kwargs['Delimiter'] = delimiter
+            search_keys = ('CommonPrefixes','Prefix')
+            
+        if subprefix_limit: # For each 'folder' under the prefix, list at most x num objects
+            # Get each subprefix
+            subprefixes = self.list_objects(bucket, key_prefix=key_prefix, subprefix_limit=None, delimiter='/')
+            # Get all keys for each subprefix with limit specified
+            keys = []
+            for subprefix in subprefixes:
+                keys += self.list_objects(bucket, subprefix, limit=subprefix_limit)
+            return keys
 
         while truncated:
             if marker:
                 kwargs['Marker'] = marker
             response = self.client.list_objects(**kwargs)
-            if 'Contents' not in response:
+            if search_keys[0] not in response:
                 raise Exception("Nothing found under that key prefix")
-            for item in response['Contents']:
-                keys.append(item['Key'])
+            for item in response[search_keys[0]]:
+                keys.append(item[search_keys[1]])
             truncated = response['IsTruncated']
-            marker = response.get('NextMarker', item['Key'])
+            # Leave loop if exceeded limit
+            if limit and len(keys) >= limit:
+                keys = keys[:limit]
+                break
+            marker = response.get('NextMarker', item[search_keys[1]])
 
         return keys
 

@@ -56,6 +56,7 @@ def _add_greenstand_parser(parser): # GREENSTAND
     group_greenstand.add_argument('--visualize', type=str, help='set to True if you want to visualize data and model output')
     group_greenstand.add_argument('--bucket', type=str, help='this is the bucket where the greenstand images are in S3')
     group_greenstand.add_argument('--prefixes', type=str, help='csv. list all of the prefixes within that bucket that you want to sync')
+    group_greenstand.add_argument('--sub_dir_limit', type=int, help='max images per dataset per species to sync locally')
     group_greenstand.add_argument('--local_path', type=str, help='this is where the greenstand images will reside on your local machine')
     group_greenstand.add_argument('--train_test_split', type=float, help='this is the first split done, between training and test')
     group_greenstand.add_argument('--train_val_split', type=float, help='this split is done on the already split training data to make train and val')
