@@ -4,6 +4,9 @@ from pathlib import Path
 
 # Functions
 def get_missing_local_files(bucket, prefix, local_dir, species_limit=None):
+    # Note any corrupted files in S3 to ignore
+    blacklist = ['2021.10.14.13.04.09_8.418876039795578_-13.165308712050319_504fb6d8-cbf3-4196-a21f-29cf027dc712_IMG_20211014_125152_8666198052150270767.jpg']
+    
     print(f"Checking missing local files based on bucket: {bucket} at prefix {prefix}...")
     # Get S3 objects
     s3 = S3()
@@ -14,7 +17,7 @@ def get_missing_local_files(bucket, prefix, local_dir, species_limit=None):
     for key in keys:
         fname = f"{local_dir}/{key}"
         path = Path(fname)
-        if not path.is_file() and not path.is_dir():
+        if not path.is_file() and not path.is_dir() and key not in blacklist:
             missing_keys.append(key)
             
     if len(missing_keys) > 0:

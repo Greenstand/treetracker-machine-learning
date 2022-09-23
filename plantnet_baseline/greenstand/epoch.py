@@ -149,7 +149,7 @@ def test_epoch(model, test_loader, criteria, list_k, lmbda, use_gpu, dataset_att
         class_acc_dict = {}
         class_acc_dict['class_acc'] = defaultdict(int)
         class_acc_dict['class_topk_acc'], class_acc_dict['class_avgk_acc'] = {}, {}
-        confuse = generate_confusion_matrix(list(dataset_attributes['class2num_instances']['train'].keys())) # GREENSTAND
+        confuse = generate_confusion_matrix(list(dataset_attributes['class2num_instances']['test'].keys())) # GREENSTAND
         
         for k in list_k:
             class_acc_dict['class_topk_acc'][k], class_acc_dict['class_avgk_acc'][k] = defaultdict(int), defaultdict(int)
@@ -169,9 +169,10 @@ def test_epoch(model, test_loader, criteria, list_k, lmbda, use_gpu, dataset_att
             update_correct_per_class(batch_proba_test, batch_y_test, class_acc_dict['class_acc'])
             for k in list_k:
                 n_correct_topk_test[k] += count_correct_topk(scores=batch_output_test, labels=batch_y_test, k=k).item()
-                n_correct_avgk_test[k] += count_correct_avgk(probas=batch_proba_test, labels=batch_y_test, lmbda=lmbda[k]).item()
                 update_correct_per_class_topk(batch_output_test, batch_y_test, class_acc_dict['class_topk_acc'][k], k)
-                update_correct_per_class_avgk(batch_proba_test, batch_y_test, class_acc_dict['class_avgk_acc'][k], lmbda[k])
+                if lmbda is not None: # GREENSTAND
+                    n_correct_avgk_test[k] += count_correct_avgk(probas=batch_proba_test, labels=batch_y_test, lmbda=lmbda[k]).item()
+                    update_correct_per_class_avgk(batch_proba_test, batch_y_test, class_acc_dict['class_avgk_acc'][k], lmbda[k])
 
         # After seeing test set update the statistics over batches and store them
         loss_epoch_test /= batch_idx

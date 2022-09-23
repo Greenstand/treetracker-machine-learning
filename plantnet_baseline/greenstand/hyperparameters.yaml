@@ -1,22 +1,26 @@
-lr: .001 # learning rate to use
-n_epochs: 10 # How many epochs to run
+lr: .005 # learning rate to use
+n_epochs: 3 # How many epochs to run
 k: 1 # value of k for computing the topk loss and computing topk accuracy
-model: resnet50 # Select the model you want to train on (other choices: 'resnet50', 'densenet121', 'densenet169', 'mobilenet_v2', 'inception_resnetv2')
+model: inception_v4  # Select the model you want to train on (look at the list of models in utils.py for the full list of supported models) #, resnet50, inception_v4
 root: ../../../data/plantnet_300K/ # specify the root location of the data
 save_name_xp: xp1 # name of the saving file
 seed: 1 # declare the random seed for the training
 batch_size: 16 # how many images in each batch
-mu: 0 # weight decay parameter
+mu: 0.0001 # weight decay parameter
 size_image: 256 # default what size the images will be resized to
 num_workers: 2 # number of workers for the data loader. Default is one. You can bring it up. If you have memory errors, set it to 1
 
 # Greenstand specific
-visualize: True # set to True if you want to visualize data and model output
+visualize: n # set to y if you want to visualize data and model output
 bucket: treetracker-training-images # this is the bucket where the greenstand images are in S3
 prefixes: haiti/,herbarium/,internet_sourced/,freetown/ # csv. list all of the prefixes within that bucket that you want to sync. The assumption is class labels are a sub-directory, and images are within the sub-directories
-sub_dir_limit: 1000 # Ensures per prefix per species, we do not download more than this number of images
+sub_dir_limit: 10000 # Ensures per prefix per species, we do not download more than this number of images
 local_path: ../../../data/treetracker-training-images  # this is where the greenstand images will reside on your local machine
 train_test_split: 0.8  # this is the first split done, between training and test
 train_val_split: 0.8 # this split is done on the already split training data to make train and val
 metadata_file: metadata.json # this will contain the information on the image split between train, val, and test
-preloaded_model_location: model/pretrained_model.pth # leave blank to use fresh model, else this will load the pretrained one here
+preloaded_model_location: model/inception_v4.tar #  # leave blank to use fresh model, else this will load the pretrained one here # model/inception_v4.tar, model/pretrained_model.pth, results/xp1/xp1_weights_best_acc.tar
+use_adam_optimizer: y # if you want to use Adam instead of SGD, set this to y
+use_focal_loss: y # if you want to use FocalLoss instead of CrossEntropyLoss, set this to y
+train_model: y # set to n if you just want to perform predictions on test set
+grid_search: n # set to y if you want to train on all different hyperparameters

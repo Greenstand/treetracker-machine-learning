@@ -7,6 +7,8 @@ from pathlib import Path
 import s3_api
 import os
 from PIL import Image
+from PIL import ImageFile
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 import json
 from copy import deepcopy
 import utils as plantnet_utils
@@ -23,12 +25,13 @@ from torchvision.transforms import CenterCrop
 
 
 # Functions
-def sync_split_get_dataloaders(args):
+def sync_split_get_dataloaders(args, skip_sync=False):
     """
     For ease of use: Performs all actions to simply get the DataLoaders needed!
     """
     # Ensure local files are present
-    change = get_all_local_files(args)
+    if not skip_sync:
+        change = get_all_local_files(args)
     metadata = None
     change = True ## SET THIS TRUE, BUG DEALING WITH RANDOM CLASS NAMES
 
@@ -44,7 +47,7 @@ def sync_split_get_dataloaders(args):
     train, val, test, dataset_attributes = get_data_loaders(args, metadata)
     
     # Visualize if necessary
-    if args['visualize']:
+    if args['visualize'] == 'y':
         visualize_imbalance(dataset_attributes)
     
     return train, val, test, dataset_attributes
@@ -60,6 +63,7 @@ def get_all_local_files(args):
         c = s3_api.get_missing_local_files(args['bucket'], prefix, args['local_path'], args['sub_dir_limit'])
         change = max(change, c)
     return change
+
 
 def load_datasets(args, metadata=None):
     """
@@ -184,7 +188,7 @@ def get_data_loaders(args, metadata):
     print("Creating data loaders...")
     # Load up the dataset and split into train, val, test
     trainset, valset, testset = load_datasets(args, metadata)
-    if args['visualize']:
+    if args['visualize'] == 'y':
         visualize_images(trainset)
 
     # Create DataLoaders
@@ -222,17 +226,32 @@ def load_preloaded_model(args, dataset_attributes):
     model = plantnet_utils.get_model(args, n_classes=1081)
     
     g_args = vars(args)
-    if g_args['preloaded_model_location'] != "":
+    if g_args['preloaded_model_location'] !="None" and g_args['preloaded_model_location'] != "":
         model.load_state_dict(torch.load(g_args['preloaded_model_location'])['model'])
-    
+            
         # Freeze model weights
         for param in model.parameters():
             param.requires_grad = False
         
-        # Replace final layer with new fc layer
-        model.fc = torch.nn.Linear(2048, dataset_attributes['n_classes'])
+         # Replace final layer with new fc layer
+        if g_args['model'] == 'inception_v4':
+            model.aux_logits = False
+            model.last_linear = torch.nn.Linear(in_features=1536, out_features=dataset_attributes['n_classes'], bias=True)
+        else:
+            model.fc = torch.nn.Linear(2048, dataset_attributes['n_classes'])
+        
         model.cuda()
     
+    return model
+
+
+def load_preloaded_model_prediction(args, dataset_attributes):
+    """
+    Given a location for a pre-trained model, loads it with PyTorch
+    """
+    g_args = vars(args)
+    model = plantnet_utils.get_model(args, n_classes=dataset_attributes['n_classes'])
+    model.load_state_dict(torch.load(g_args['preloaded_model_location'])['model'])
     return model
 
 
@@ -265,7 +284,7 @@ class GreenstandLabelledImageDataset(Dataset):
                                 labels.append(label)
             self.images = np.array(self.images)
         
-        self.classes = list(set(labels))
+        self.classes = sorted(list(set(labels)))
         
         self.class_to_idx = {}
         for i in range(len(self.classes)):
@@ -369,3 +388,37 @@ def visualize_images(dataset):
         ax.set_yticks([])
         plt.imshow(img)
     plt.show()
+
+
+def grid_search(args, param_space):
+    """
+    Does a grid search of all items included in param space
+    param_space should be a dict whose key is the hyperparameter name (ie: lr) and values is a list of values to search through (ie: [0.1, 0.01, 0.05])
+    """
+    all_results = {}
+#     for key in param_space
+    
+    
+#     for adam_opt in ['y','n']:
+#         for focal_opt in ['y','n']:
+#             for lr in [.001, .005, .01, .05, .1]:
+#                 for mu in [0.0, .01]:
+#                     i+=1
+#                     if i < skip_to or mu > 0.0:
+#                         continue
+#                     print("---------------------------------------------- NEW ----------------------------------------------------")
+#                     config = load_config_file(hyperparameter_config_file='hyperparameters.yaml')
+#                     config['use_adam_optimizer'] = adam_opt
+#                     config['use_focal_loss'] = focal_opt
+#                     config['lr'] = lr
+#                     config['mu'] = mu
+
+#                     arg_list = get_args(config)
+#                     parser = argparse.ArgumentParser()
+#                     cli.add_all_parsers(parser)
+#                     args = parser.parse_args(args=arg_list)
+#                     acc = train(args)
+
+#                     print(f"RESULT: ADAM:{adam_opt} FOCAL:{focal_opt} LR:{lr} MU:{mu} - ACC:{acc}")
+#                     all_results[(adam_opt, focal_opt, lr, mu)] = acc
+#     print(all_results)
