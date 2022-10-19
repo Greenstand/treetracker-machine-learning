@@ -1,19 +1,19 @@
-lr: .005 # learning rate to use
-n_epochs: 3 # How many epochs to run
+lr: .001 # learning rate to use
+n_epochs: 50 # How many epochs to run
 k: 1 # value of k for computing the topk loss and computing topk accuracy
 model: inception_v4  # Select the model you want to train on (look at the list of models in utils.py for the full list of supported models) #, resnet50, inception_v4
 root: ../../../data/plantnet_300K/ # specify the root location of the data
 save_name_xp: xp1 # name of the saving file
 seed: 1 # declare the random seed for the training
 batch_size: 16 # how many images in each batch
-mu: 0.0001 # weight decay parameter
+mu: 0.0000 # weight decay parameter
 size_image: 256 # default what size the images will be resized to
 num_workers: 2 # number of workers for the data loader. Default is one. You can bring it up. If you have memory errors, set it to 1
 
 # Greenstand specific
 visualize: n # set to y if you want to visualize data and model output
 bucket: treetracker-training-images # this is the bucket where the greenstand images are in S3
-prefixes: haiti/,herbarium/,internet_sourced/,freetown/ # csv. list all of the prefixes within that bucket that you want to sync. The assumption is class labels are a sub-directory, and images are within the sub-directories
+prefixes: haiti/ # csv. list all of the prefixes within that bucket that you want to sync. The assumption is class labels are a sub-directory, and images are within the sub-directories # haiti/,herbarium/,internet_sourced/,freetown/
 sub_dir_limit: 10000 # Ensures per prefix per species, we do not download more than this number of images
 local_path: ../../../data/treetracker-training-images  # this is where the greenstand images will reside on your local machine
 train_test_split: 0.8  # this is the first split done, between training and test
@@ -23,4 +23,6 @@ preloaded_model_location: model/inception_v4.tar #  # leave blank to use fresh m
 use_adam_optimizer: y # if you want to use Adam instead of SGD, set this to y
 use_focal_loss: y # if you want to use FocalLoss instead of CrossEntropyLoss, set this to y
 train_model: y # set to n if you just want to perform predictions on test set
-grid_search: n # set to y if you want to train on all different hyperparameters
+transfer_learning_freeze_weights: n # set to y if when loading a transfer learning model, you want to freeze all weights
+skip_sync: y # set to y if you want to skip syncing S3 to local and just move on with what is local
+use_tuner: y # set to y if you want to do hyperparameter tuning via ray tune, else n just runs whats here in the hyperparameters
