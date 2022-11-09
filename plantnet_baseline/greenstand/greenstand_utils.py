@@ -63,7 +63,7 @@ def get_all_local_files(args):
         c = s3_api.get_missing_local_files(args['bucket'], prefix, args['local_path'], args['sub_dir_limit'])
         change = max(change, c)
     return change
-
+    
 
 def load_datasets(args, metadata=None):
     """
@@ -71,12 +71,21 @@ def load_datasets(args, metadata=None):
     If metadata is provided, loads a dataset for train, val, test separately
     If not, loads all data into one object.
     """
-    print("Loading datasets...")
-    # Define pathing and transforms
-    paths = [args['local_path'] + "/" + p for p in os.listdir(args['local_path'])]
-    transform = transforms.Compose(
-        [MaxCenterCrop(), transforms.Resize(args['size_image']), transforms.ToTensor()])
+    print("Loading datasets...", args)
     
+    # Define pathing 
+    paths = [args['local_path'] + "/" + p for p in os.listdir(args['local_path']) if p.split('/')[-1] + "/" in args['prefixes']]
+    print(f"Paths: {paths}")
+
+    # Define transforms
+    augmentation_transforms=[transforms.RandomHorizontalFlip(0.5), 
+                             transforms.GaussianBlur(3),
+                             transforms.ColorJitter(brightness=0.05, contrast=0.02, saturation=0.0, hue=0.0)]
+    transform = transforms.Compose(
+        [MaxCenterCrop(), 
+         transforms.Resize(args['size_image'])] + augmentation_transforms + [transforms.ToTensor()])
+    
+    # Return datasets
     if not metadata:
         return GreenstandLabelledImageDataset(paths, transform=transform)
     else:
@@ -230,8 +239,9 @@ def load_preloaded_model(args, dataset_attributes):
         model.load_state_dict(torch.load(g_args['preloaded_model_location'])['model'])
             
         # Freeze model weights
-        for param in model.parameters():
-            param.requires_grad = False
+        if g_args['transfer_learning_freeze_weights'] == 'y':
+            for param in model.parameters():
+                param.requires_grad = False
         
          # Replace final layer with new fc layer
         if g_args['model'] == 'inception_v4':
@@ -388,37 +398,3 @@ def visualize_images(dataset):
         ax.set_yticks([])
         plt.imshow(img)
     plt.show()
-
-
-def grid_search(args, param_space):
-    """
-    Does a grid search of all items included in param space
-    param_space should be a dict whose key is the hyperparameter name (ie: lr) and values is a list of values to search through (ie: [0.1, 0.01, 0.05])
-    """
-    all_results = {}
-#     for key in param_space
-    
-    
-#     for adam_opt in ['y','n']:
-#         for focal_opt in ['y','n']:
-#             for lr in [.001, .005, .01, .05, .1]:
-#                 for mu in [0.0, .01]:
-#                     i+=1
-#                     if i < skip_to or mu > 0.0:
-#                         continue
-#                     print("---------------------------------------------- NEW ----------------------------------------------------")
-#                     config = load_config_file(hyperparameter_config_file='hyperparameters.yaml')
-#                     config['use_adam_optimizer'] = adam_opt
-#                     config['use_focal_loss'] = focal_opt
-#                     config['lr'] = lr
-#                     config['mu'] = mu
-
-#                     arg_list = get_args(config)
-#                     parser = argparse.ArgumentParser()
-#                     cli.add_all_parsers(parser)
-#                     args = parser.parse_args(args=arg_list)
-#                     acc = train(args)
-
-#                     print(f"RESULT: ADAM:{adam_opt} FOCAL:{focal_opt} LR:{lr} MU:{mu} - ACC:{acc}")
-#                     all_results[(adam_opt, focal_opt, lr, mu)] = acc
-#     print(all_results)

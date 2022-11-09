@@ -77,4 +77,7 @@ def _add_greenstand_parser(parser): # GREENSTAND
     group_greenstand.add_argument('--use_adam_optimizer', type=str, help='if you want to use Adam instead of SGD, set this to y')
     group_greenstand.add_argument('--use_focal_loss', type=str, help='if you want to use FocalLoss instead of CrossEntropyLoss, set this to y')
     group_greenstand.add_argument('--train_model', type=str, help='if you want to only predict, set this to n')
-    group_greenstand.add_argument('--grid_search', type=str, help='set to y if you want to train on all different hyperparameters')
+    group_greenstand.add_argument('--transfer_learning_freeze_weights', type=str, help='set to y if when loading a transfer learning model, you want to freeze all weights')
+    group_greenstand.add_argument('--skip_sync', type=str, help='set to y if you want to skip syncing S3 to local and just move on with what is local')
+    group_greenstand.add_argument('--use_tuner', type=str, help='set to y if you want to do hyperparameter tuning via ray tune, else n just runs whats here in the hyperparameters')
+    
