@@ -6,16 +6,15 @@ import io
 import json
 import shutil
 
-CLIENT_ACCESS_KEY="your key"
-CLIENT_SECRET_KEY = "your secret key"
-
-# Insert here the folder containing all images
-project_dir = "/home/olivier/greenstand/haiti/"
+CLIENT_ACCESS_KEY="AKIAQYWVSSHAHHFC6ZWX"
+CLIENT_SECRET_KEY = 'BWUgd7/oRyXOAvelTA0IYIjiPVnLsl/rNCZgPf9c'
+project_dir = "/home/olivier/greenstand/freetown/"
 assert (os.path.exists(project_dir))
-
+project_good_dir =  project_dir + "good/"
+project_bad_dir = project_dir + "bad/"
+project_rejected_dir = project_dir + "rejected/"
 PROBA_THRESHOLD = 0.9
-VERBOSE = 1
-DISPLAY_RATE = 10
+COPY = True
 
 ## Inference runtime
 runtime = boto3.client("sagemaker-runtime", 
@@ -68,7 +67,8 @@ def ventile():
         if not os.path.isfile( os.path.join(f, filename)):
           continue
         # Calls endpoint
-        result = infer(os.path.join(f, filename))
+        the_file = os.path.join(f, filename)
+        result = infer(the_file)
         total += 1
         # Looks for max proba in the result
         max_prob = 0.0
@@ -81,12 +81,19 @@ def ventile():
         if (max_prob > PROBA_THRESHOLD):
           if species_groundtruth == max_species:
             true_pos += 1
+            if COPY:
+               shutil.copy(the_file, project_good_dir + species_groundtruth + "_" + str(true_pos) + ".jpg")
           else:
             false_pos += 1
+            if COPY:
+               shutil.copy(the_file, project_bad_dir + species_groundtruth + "_" + max_species +  "_" + str(false_pos) + ".jpg")
+
         else:
           discarded += 1
+          if COPY:
+            shutil.copy(the_file, project_rejected_dir + species_groundtruth + "_" + str(discarded) + ".jpg")
         remaining = total - discarded
-        if (VERBOSE and total%DISPLAY_RATE == 0 and remaining > 0):
+        if (total%10 == 0 and remaining > 0):
           print("accuracy: ", true_pos/remaining, ", % of rejected: ", discarded/total)
           # TODO copy to folder according to result
 
