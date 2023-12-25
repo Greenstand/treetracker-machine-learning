@@ -8,3 +8,9 @@ data/*
 *.idea/*
 *.txt
 */tree_projects/*
+*local_data/*
+*.JPG
+*.jpg
+*.JPEG
+*.jpeg
+*checkpoints/*

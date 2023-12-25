@@ -7,7 +7,7 @@ import cv2
 import torch
 
 class LeafDataset(data.Dataset):
-    def __init__(self, root, image_set='train', img_transform=None, mask_transform=None):
+    def __init__(self, root, image_set='train', img_transform=None, mask_transform=None, ext=".jpg"):
         self.root = os.path.expanduser(root)
         self.img_transform = img_transform
         self.mask_transform = mask_transform
@@ -16,9 +16,9 @@ class LeafDataset(data.Dataset):
         mask_dir = os.path.join(self.root, 'binary_masks')
         split_fpath = os.path.join(self.root, 'splits', f'{self.image_set}.txt')        
         with open(split_fpath, 'r') as f:
-            file_names = [x.strip() for x in f.readlines()]        
-            self.images = [os.path.join(image_dir, fname + '.JPG') for fname in file_names]
-            self.masks = [os.path.join(mask_dir, fname + '_mask_.jpg') for fname in file_names]
+            file_names = [x.strip().lower() for x in f.readlines()]        
+            self.images = [os.path.join(image_dir, fname + ext) for fname in file_names]
+            self.masks = [os.path.join(mask_dir, fname + '_mask_' + ext) for fname in file_names]
 
     def __getitem__(self, index):
         img_path = self.images[index]
