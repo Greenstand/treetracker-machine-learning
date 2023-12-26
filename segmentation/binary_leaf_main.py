@@ -24,7 +24,7 @@ import subprocess
 
 import sagemaker
 from sagemaker.remote_function import remote
-from sagemaker.experiments.run import Run
+from sagemaker.experiments.run import Run, load_run
 
 from split_dataset import split_dataset, lowercase_filenames
 import datetime
@@ -40,7 +40,7 @@ def get_argparser():
 
     # Dataset Options
     parser.add_argument("--experiment_name", type=str, default="main", help="AWS Experiment name")
-    parser.add_argument("--run_name", type=str, default=str(datetime.datetime.now().isoformat().replace('-','')), help="AWS Run Name")
+    parser.add_argument("--run_name", type=str, default="test", help="AWS Run Name")
     parser.add_argument("--data_root", type=str, default='../',
                         help="path to Dataset")
     parser.add_argument("--dataset", type=str, default='custom',
@@ -282,7 +282,13 @@ def smooth_labels(labels,smoothing=0.1):
 
 def main_wrapper():
     opts = get_argparser().parse_args()
-    main(opts)
+    with Run(
+        experiment_name=opts.experiment_name,
+        run_name=opts.run_name,
+    ) as run:
+        run.log_parameter("lr", opts.lr)
+        run.log_parameter("batch_size", opts.batch_size)
+        main(opts)
 
 @remote(include_local_workdir=True)
 def main(opts):
@@ -412,12 +418,7 @@ def main(opts):
     patience = 5
 
     interval_loss = 0
-    with Run(
-        experiment_name=opts.experiment_name,
-        run_name=opts.run_name,
-    ) as run:
-        run.log_parameter("lr", opts.lr)
-        run.log_parameter("batch_size", opts.batch_size)
+    with load_run() as run: 
         while True:  # cur_itrs < opts.total_itrs:
             # =====  Train  =====
             model.train()
@@ -465,6 +466,12 @@ def main(opts):
                     print("Validation Loss: %f" % current_val_loss)
                     print(metrics.to_str(val_score))
 
+                    run.log_metric("Current itrs", cur_itrs)
+                    run.log_metric("[Val] Foreground Acc", val_score['Foreground Acc'])
+                    run.log_metric("[Val] Mean IoU", val_score['Mean IoU'])
+                    #vis.vis_table("[Val] Class IoU", val_score['Class IoU'])
+                    run.log_metric("[Val] IoU Foreground", val_score['IoU Foreground'])
+
                     print("==========================================================")
 
 
@@ -504,3 +511,4 @@ def main(opts):
 
 if __name__ == '__main__':
     main_wrapper()
+    subprocess.run(["cp",  "-R", "checkpoints/", "/opt/ml/models"])
