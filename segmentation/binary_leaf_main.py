@@ -506,9 +506,9 @@ def main(opts):
                 scheduler.step()
 
                 if cur_itrs >= opts.total_itrs:
-                    return
+                    return model
 
 
 if __name__ == '__main__':
     main_wrapper()
-    subprocess.run(["cp",  "-R", "checkpoints/", "/opt/ml/models"])
+    # subprocess.run(["cp",  "-R", "checkpoints/", "/opt/ml/models"])
