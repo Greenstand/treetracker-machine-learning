@@ -7,9 +7,9 @@ import argparse
 import numpy as np
 
 from torch.utils import data
-from datasets import LeafDataset
+from datasets import VOCSegmentation, Cityscapes
 from utils import ext_transforms as et
-from metrics import StreamSegMetrics, BinarySegMetrics
+from metrics import StreamSegMetrics
 
 import torch
 import torch.nn as nn
@@ -18,29 +18,17 @@ from utils.visualizer import Visualizer
 from PIL import Image
 import matplotlib
 import matplotlib.pyplot as plt
-from torchvision import transforms
-import matplotlib.pyplot as plt
-import subprocess
 
-import sagemaker
-from sagemaker.remote_function import remote
-from split_dataset import split_dataset
-sm_session = sagemaker.Session()
-s3_root_folder = f"s3://{sm_session.default_bucket()}/"
-
-
-# Set path to config file
-os.environ["SAGEMAKER_USER_CONFIG_OVERRIDE"] = os.getcwd()
 
 def get_argparser():
     parser = argparse.ArgumentParser()
 
-    # Dataset Options
-    parser.add_argument("--data_root", type=str, default='../',
+    # Datset Options
+    parser.add_argument("--data_root", type=str, default='./datasets/data',
                         help="path to Dataset")
-    parser.add_argument("--dataset", type=str, default='custom',
-                        choices=['voc', 'cityscapes', 'custom'], help='Name of dataset')
-    parser.add_argument("--num_classes", type=int, default=2,
+    parser.add_argument("--dataset", type=str, default='voc',
+                        choices=['voc', 'cityscapes'], help='Name of dataset')
+    parser.add_argument("--num_classes", type=int, default=None,
                         help="num classes (default: None)")
 
     # Deeplab Options
@@ -58,11 +46,11 @@ def get_argparser():
     parser.add_argument("--test_only", action='store_true', default=False)
     parser.add_argument("--save_val_results", action='store_true', default=False,
                         help="save segmentation results to \"./results\"")
-    parser.add_argument("--total_itrs", type=int, default=10e2,
+    parser.add_argument("--total_itrs", type=int, default=30e3,
                         help="epoch number (default: 30k)")
     parser.add_argument("--lr", type=float, default=0.01,
                         help="learning rate (default: 0.01)")
-    parser.add_argument("--lr_policy", type=str, default='poly', choices=['poly', 'step', 'warmup', 'chained'],
+    parser.add_argument("--lr_policy", type=str, default='poly', choices=['poly', 'step'],
                         help="learning rate scheduler policy")
     parser.add_argument("--step_size", type=int, default=10000)
     parser.add_argument("--crop_val", action='store_true', default=False,
@@ -78,7 +66,7 @@ def get_argparser():
     parser.add_argument("--continue_training", action='store_true', default=False)
 
     parser.add_argument("--loss_type", type=str, default='cross_entropy',
-                        choices=['cross_entropy', 'focal_loss', 'BCE', 'binary_focal', 'binary_dice'], help="loss type (default: False)")
+                        choices=['cross_entropy', 'focal_loss'], help="loss type (default: False)")
     parser.add_argument("--gpu_id", type=str, default='0',
                         help="GPU ID")
     parser.add_argument("--weight_decay", type=float, default=1e-4,
@@ -92,9 +80,9 @@ def get_argparser():
     parser.add_argument("--download", action='store_true', default=False,
                         help="download datasets")
 
-    # Custom Dataset Options
-    parser.add_argument("--custom_data_path", type=str, default='../leaf_samples',
-                        help="path to custom dataset")
+    # PASCAL VOC Options
+    parser.add_argument("--year", type=str, default='2012',
+                        choices=['2012_aug', '2012', '2011', '2009', '2008', '2007'], help='year of VOC')
 
     # Visdom options
     parser.add_argument("--enable_vis", action='store_true', default=False,
@@ -111,17 +99,6 @@ def get_argparser():
 def get_dataset(opts):
     """ Dataset And Augmentation
     """
-    
-    print ("Calling s3 sync! This may take a while")
-    subprocess.run(["aws", "s3", "sync", "s3://treetracker-training-images/pilot_annotations/PlantVillage/", "local_data/"],
-                   capture_output=True)
-    image_dir = 'local_data/samples/'
-    output_dir = 'local_data/splits/'
-    split_dataset(image_dir, output_dir=output_dir)
-    print ("Finished split")
-    print (len(os.listdir("local_data/samples")))
-    print (len(os.listdir("local_data/binary_masks")))
-
     if opts.dataset == 'voc':
         train_transform = et.ExtCompose([
             # et.ExtResize(size=opts.crop_size),
@@ -151,64 +128,41 @@ def get_dataset(opts):
         val_dst = VOCSegmentation(root=opts.data_root, year=opts.year,
                                   image_set='val', download=False, transform=val_transform)
 
-    if opts.dataset == 'custom':
-        """
-        Augmentation to the custom dataset
-        """
-        train_img_transform = transforms.Compose([
-          #RandomCropAndPad(512),
-          transforms.Resize((256, 256)),
-          #transforms.RandomResizedCrop(size=(256, 256)),
-          transforms.RandomHorizontalFlip(),
-          #transforms.RandomRotation(degrees=(0, 360)),
-          #transforms.ColorJitter(brightness=0.5, contrast=0.5, saturation=0.5, hue=0.5),
-          transforms.ToTensor(),
-          transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    if opts.dataset == 'cityscapes':
+        train_transform = et.ExtCompose([
+            # et.ExtResize( 512 ),
+            et.ExtRandomCrop(size=(opts.crop_size, opts.crop_size)),
+            et.ExtColorJitter(brightness=0.5, contrast=0.5, saturation=0.5),
+            et.ExtRandomHorizontalFlip(),
+            et.ExtToTensor(),
+            et.ExtNormalize(mean=[0.485, 0.456, 0.406],
+                            std=[0.229, 0.224, 0.225]),
         ])
 
-        train_mask_transform = transforms.Compose([
-            #RandomCropAndPadMask(512),
-            transforms.Resize((256, 256), interpolation=transforms.InterpolationMode.NEAREST),
-            #transforms.RandomResizedCrop(size=(256, 256), interpolation=transforms.InterpolationMode.NEAREST),
-            transforms.RandomHorizontalFlip(),
-            #transforms.RandomRotation(degrees=(0, 360)),
-            transforms.ToTensor(),
+        val_transform = et.ExtCompose([
+            # et.ExtResize( 512 ),
+            et.ExtToTensor(),
+            et.ExtNormalize(mean=[0.485, 0.456, 0.406],
+                            std=[0.229, 0.224, 0.225]),
         ])
 
-        val_img_transform = transforms.Compose([
-            transforms.Resize((256, 256)),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        ])
-
-        val_mask_transform = transforms.Compose([
-            transforms.Resize((256, 256), interpolation=transforms.InterpolationMode.NEAREST),
-            transforms.ToTensor(),
-        ])
-
-        train_dst = LeafDataset(root=opts.custom_data_path, image_set='train', img_transform=train_img_transform, mask_transform=train_mask_transform)
-        val_dst = LeafDataset(root=opts.custom_data_path, image_set='val', img_transform=val_img_transform, mask_transform=val_mask_transform)
-
-
+        train_dst = Cityscapes(root=opts.data_root,
+                               split='train', transform=train_transform)
+        val_dst = Cityscapes(root=opts.data_root,
+                             split='val', transform=val_transform)
     return train_dst, val_dst
 
 
-# ================================================= Validation ==============================================================
-def validate(opts, model, loader, device, metrics, criterion, ret_samples_ids=None):
+def validate(opts, model, loader, device, metrics, ret_samples_ids=None):
     """Do validation and return specified samples"""
     metrics.reset()
     ret_samples = []
-
-    total_loss = 0.0  # Initialize total loss
-    num_batches = 0
-
     if opts.save_val_results:
         if not os.path.exists('results'):
             os.mkdir('results')
         denorm = utils.Denormalize(mean=[0.485, 0.456, 0.406],
                                    std=[0.229, 0.224, 0.225])
         img_id = 0
-
 
     with torch.no_grad():
         for i, (images, labels) in tqdm(enumerate(loader)):
@@ -217,21 +171,9 @@ def validate(opts, model, loader, device, metrics, criterion, ret_samples_ids=No
             labels = labels.to(device, dtype=torch.long)
 
             outputs = model(images)
-            #preds = outputs.detach().max(dim=1)[1].cpu().numpy()
-            
-            outputs = torch.squeeze(outputs, dim=1)
-            labels = labels.float()
-
-            loss = criterion(outputs, labels)  # Compute loss
-            total_loss += loss.item()  # Accumulate the total loss
-            num_batches += 1
-
-            probs = torch.sigmoid(outputs).detach()
-            preds = (probs > 0.5).long().cpu().numpy()
-            
+            preds = outputs.detach().max(dim=1)[1].cpu().numpy()
             targets = labels.cpu().numpy()
-            
-            
+
             metrics.update(targets, preds)
             if ret_samples_ids is not None and i in ret_samples_ids:  # get vis samples
                 ret_samples.append(
@@ -243,11 +185,9 @@ def validate(opts, model, loader, device, metrics, criterion, ret_samples_ids=No
                     target = targets[i]
                     pred = preds[i]
 
-                    # Decode the binary target and prediction masks to RGB images
-                    target_rgb = loader.dataset.decode_target(target).astype(np.uint8)
-                    pred_rgb = loader.dataset.decode_target(pred).astype(np.uint8)
-                    
                     image = (denorm(image) * 255).transpose(1, 2, 0).astype(np.uint8)
+                    target = loader.dataset.decode_target(target).astype(np.uint8)
+                    pred = loader.dataset.decode_target(pred).astype(np.uint8)
 
                     Image.fromarray(image).save('results/%d_image.png' % img_id)
                     Image.fromarray(target).save('results/%d_target.png' % img_id)
@@ -263,25 +203,17 @@ def validate(opts, model, loader, device, metrics, criterion, ret_samples_ids=No
                     plt.savefig('results/%d_overlay.png' % img_id, bbox_inches='tight', pad_inches=0)
                     plt.close()
                     img_id += 1
-        
-        average_loss = total_loss / num_batches
+
         score = metrics.get_results()
-    return score, ret_samples, average_loss
+    return score, ret_samples
 
 
-def smooth_labels(labels,smoothing=0.1):
-    return labels * (1 - smoothing) + 0.5 * smoothing
-
-def main_wrapper():
+def main():
     opts = get_argparser().parse_args()
-    main(opts)
-
-@remote(include_local_workdir=True)
-def main(opts):
-    if opts.dataset.lower() == 'custom':
-        #opts.num_classes = 2   # Multi-class with cross-entropy
-        opts.num_classes = 1   #Binary segmentation
-
+    if opts.dataset.lower() == 'voc':
+        opts.num_classes = 21
+    elif opts.dataset.lower() == 'cityscapes':
+        opts.num_classes = 19
 
     # Setup visualization
     vis = Visualizer(port=opts.vis_port,
@@ -289,7 +221,6 @@ def main(opts):
     if vis is not None:  # display options
         vis.vis_table("Options", vars(opts))
 
-    # Device Config
     os.environ['CUDA_VISIBLE_DEVICES'] = opts.gpu_id
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print("Device: %s" % device)
@@ -300,6 +231,9 @@ def main(opts):
     random.seed(opts.random_seed)
 
     # Setup dataloader
+    if opts.dataset == 'voc' and not opts.crop_val:
+        opts.val_batch_size = 1
+
     train_dst, val_dst = get_dataset(opts)
     train_loader = data.DataLoader(
         train_dst, batch_size=opts.batch_size, shuffle=True, num_workers=2,
@@ -316,8 +250,7 @@ def main(opts):
     utils.set_bn_momentum(model.backbone, momentum=0.01)
 
     # Set up metrics
-    ## metrics = StreamSegMetrics(opts.num_classes)
-    metrics = BinarySegMetrics()
+    metrics = StreamSegMetrics(opts.num_classes)
 
     # Set up optimizer
     optimizer = torch.optim.SGD(params=[
@@ -328,28 +261,15 @@ def main(opts):
     # torch.optim.lr_scheduler.StepLR(optimizer, step_size=opts.lr_decay_step, gamma=opts.lr_decay_factor)
     if opts.lr_policy == 'poly':
         scheduler = utils.PolyLR(optimizer, opts.total_itrs, power=0.9)
-    
     elif opts.lr_policy == 'step':
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=opts.step_size, gamma=0.1)
-    
-    elif opts.lr_policy == 'warmup':
-        scheduler = utils.GradualWarmupLR(optimizer, multiplier=1, total_epoch=5, after_scheduler=None)
-    
-    elif opts.lr_policy == 'chained': # Combine warm up and step
-        warmup_scheduler = utils.GradualWarmupLR(optimizer, multiplier=1, total_epoch=5, after_scheduler=None)
-        step_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=opts.step_size, gamma=0.1)
-        scheduler = torch.optim.lr_scheduler.SequentialLR(optimizer, schedulers=[warmup_scheduler, step_scheduler], milestones=[5])
 
     # Set up criterion
     # criterion = utils.get_loss(opts.loss_type)
     if opts.loss_type == 'focal_loss':
         criterion = utils.FocalLoss(ignore_index=255, size_average=True)
-    elif opts.loss_type == 'binary_focal':
-        criterion = utils.BinaryFocalLoss() 
     elif opts.loss_type == 'cross_entropy':
         criterion = nn.CrossEntropyLoss(ignore_index=255, reduction='mean')
-    elif opts.loss_type == 'BCE':
-        criterion = nn.BCEWithLogitsLoss()  ##nn.BCELoss()
 
     def save_ckpt(path):
         """ save current model
@@ -387,21 +307,17 @@ def main(opts):
         model = nn.DataParallel(model)
         model.to(device)
 
-    # =========================================   Train Loop   =====================================================
+    # ==========   Train Loop   ==========#
     vis_sample_id = np.random.randint(0, len(val_loader), opts.vis_num_samples,
                                       np.int32) if opts.enable_vis else None  # sample idxs for visualization
     denorm = utils.Denormalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # denormalization for ori images
 
     if opts.test_only:
         model.eval()
-        val_score, ret_samples, _ = validate(
-            opts=opts, model=model, loader=val_loader, device=device, metrics=metrics, criterion=criterion, ret_samples_ids=vis_sample_id)
+        val_score, ret_samples = validate(
+            opts=opts, model=model, loader=val_loader, device=device, metrics=metrics, ret_samples_ids=vis_sample_id)
         print(metrics.to_str(val_score))
         return
-
-    best_val_loss = float('inf')
-    no_improve_epochs = 0
-    patience = 5
 
     interval_loss = 0
     while True:  # cur_itrs < opts.total_itrs:
@@ -415,15 +331,7 @@ def main(opts):
             labels = labels.to(device, dtype=torch.long)
 
             optimizer.zero_grad()
-            #print("Max label value:", labels.max().item())
             outputs = model(images)
-            
-
-            # Dimension to BCE
-            outputs = torch.squeeze(outputs, dim=1)
-            
-            labels = labels.float()
-
             loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
@@ -444,35 +352,19 @@ def main(opts):
                           (opts.model, opts.dataset, opts.output_stride))
                 print("validation...")
                 model.eval()
-                val_score, ret_samples, current_val_loss = validate(
-                    opts=opts, model=model, loader=val_loader, device=device, metrics=metrics, criterion=criterion,
+                val_score, ret_samples = validate(
+                    opts=opts, model=model, loader=val_loader, device=device, metrics=metrics,
                     ret_samples_ids=vis_sample_id)
-                
-                print("Validation Loss: %f" % current_val_loss)
                 print(metrics.to_str(val_score))
-                
-                print("==========================================================")
-                
-
-                #================== Early stop =========================================
-                if current_val_loss < best_val_loss:
-                    best_val_loss = current_val_loss
-                    no_improve_epochs = 0
-                    # Save best model
-                    save_ckpt('checkpoints/best_%s_%s_os%d.pth' % (opts.model, opts.dataset, opts.output_stride))
-                else:
-                    no_improve_epochs += 1
-
-                if no_improve_epochs >= patience:
-                    print("Early stopping triggered after %d validations" % no_improve_epochs)
-                    break
-                #=======================================================================
+                if val_score['Mean IoU'] > best_score:  # save best model
+                    best_score = val_score['Mean IoU']
+                    save_ckpt('checkpoints/best_%s_%s_os%d.pth' %
+                              (opts.model, opts.dataset, opts.output_stride))
 
                 if vis is not None:  # visualize validation score and samples
-                    vis.vis_scalar("[Val] Foreground Acc", cur_itrs, val_score['Foreground Acc'])
+                    vis.vis_scalar("[Val] Overall Acc", cur_itrs, val_score['Overall Acc'])
                     vis.vis_scalar("[Val] Mean IoU", cur_itrs, val_score['Mean IoU'])
-                    #vis.vis_table("[Val] Class IoU", val_score['Class IoU'])
-                    vis.vis_scalar("[Val] IoU Foreground", cur_itrs, val_score['IoU Foreground'])
+                    vis.vis_table("[Val] Class IoU", val_score['Class IoU'])
 
                     for k, (img, target, lbl) in enumerate(ret_samples):
                         img = (denorm(img) * 255).astype(np.uint8)
@@ -488,4 +380,4 @@ def main(opts):
 
 
 if __name__ == '__main__':
-    main_wrapper()
+    main()

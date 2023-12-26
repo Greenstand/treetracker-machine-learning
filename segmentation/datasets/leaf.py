@@ -3,12 +3,14 @@ import json
 import numpy as np
 from PIL import Image
 import torch.utils.data as data
-import cv2
 import torch
 
 class LeafDataset(data.Dataset):
     def __init__(self, root, image_set='train', img_transform=None, mask_transform=None, ext=".jpg"):
         self.root = os.path.expanduser(root)
+        print ("Root :" , self.root)
+        print ("CWD: " , os.getcwd())
+        print ("Children: ", os.listdir(os.path.join(os.getcwd(), "local_data", "splits")))
         self.img_transform = img_transform
         self.mask_transform = mask_transform
         self.image_set = image_set        # Adjust paths
@@ -19,7 +21,6 @@ class LeafDataset(data.Dataset):
             file_names = [x.strip().lower() for x in f.readlines()]        
             self.images = [os.path.join(image_dir, fname + ext) for fname in file_names]
             self.masks = [os.path.join(mask_dir, fname + '_mask_' + ext) for fname in file_names]
-
     def __getitem__(self, index):
         img_path = self.images[index]
         mask_path = self.masks[index]
