@@ -40,7 +40,7 @@ def get_argparser():
 
     # Dataset Options
     parser.add_argument("--experiment_name", type=str, default="main", help="AWS Experiment name")
-    parser.add_argument("--run_name", type=str, default=str(datetime.datetime.now()), help="AWS Run Name")
+    parser.add_argument("--run_name", type=str, default=str(datetime.datetime.now().isoformat().replace('-','')), help="AWS Run Name")
     parser.add_argument("--data_root", type=str, default='../',
                         help="path to Dataset")
     parser.add_argument("--dataset", type=str, default='custom',
