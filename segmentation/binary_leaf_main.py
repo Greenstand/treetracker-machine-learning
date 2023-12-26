@@ -24,10 +24,13 @@ import subprocess
 
 import sagemaker
 from sagemaker.remote_function import remote
-from split_dataset import split_dataset
+from sagemaker.experiments.run import Run
+
+from split_dataset import split_dataset, lowercase_filenames
+import datetime
+
 sm_session = sagemaker.Session()
 s3_root_folder = f"s3://{sm_session.default_bucket()}/"
-
 
 # Set path to config file
 os.environ["SAGEMAKER_USER_CONFIG_OVERRIDE"] = os.getcwd()
@@ -36,6 +39,8 @@ def get_argparser():
     parser = argparse.ArgumentParser()
 
     # Dataset Options
+    parser.add_argument("--experiment_name", type=str, default="main", help="AWS Experiment name")
+    parser.add_argument("--run_name", type=str, default=str(datetime.datetime.now()), help="AWS Run Name")
     parser.add_argument("--data_root", type=str, default='../',
                         help="path to Dataset")
     parser.add_argument("--dataset", type=str, default='custom',
@@ -116,7 +121,10 @@ def get_dataset(opts):
     subprocess.run(["aws", "s3", "sync", "s3://treetracker-training-images/pilot_annotations/PlantVillage/", "local_data/"],
                    capture_output=True)
     image_dir = 'local_data/samples/'
+    mask_dir = 'local_data/binary_masks/'
     output_dir = 'local_data/splits/'
+    lowercase_filenames(os.path.join(image_dir))
+    lowercase_filenames(os.path.join(mask_dir))
     split_dataset(image_dir, output_dir=output_dir)
     print ("Finished split")
     print (len(os.listdir("local_data/samples")))
@@ -404,87 +412,94 @@ def main(opts):
     patience = 5
 
     interval_loss = 0
-    while True:  # cur_itrs < opts.total_itrs:
-        # =====  Train  =====
-        model.train()
-        cur_epochs += 1
-        for (images, labels) in train_loader:
-            cur_itrs += 1
+    with Run(
+        experiment_name=opts.experiment_name,
+        run_name=opts.run_name,
+    ) as run:
+        run.log_parameter("lr", opts.lr)
+        run.log_parameter("batch_size", opts.batch_size)
+        while True:  # cur_itrs < opts.total_itrs:
+            # =====  Train  =====
+            model.train()
+            cur_epochs += 1
+            for (images, labels) in train_loader:
+                cur_itrs += 1
 
-            images = images.to(device, dtype=torch.float32)
-            labels = labels.to(device, dtype=torch.long)
+                images = images.to(device, dtype=torch.float32)
+                labels = labels.to(device, dtype=torch.long)
 
-            optimizer.zero_grad()
-            #print("Max label value:", labels.max().item())
-            outputs = model(images)
-            
+                optimizer.zero_grad()
+                #print("Max label value:", labels.max().item())
+                outputs = model(images)
 
-            # Dimension to BCE
-            outputs = torch.squeeze(outputs, dim=1)
-            
-            labels = labels.float()
 
-            loss = criterion(outputs, labels)
-            loss.backward()
-            optimizer.step()
+                # Dimension to BCE
+                outputs = torch.squeeze(outputs, dim=1)
 
-            np_loss = loss.detach().cpu().numpy()
-            interval_loss += np_loss
-            if vis is not None:
-                vis.vis_scalar('Loss', cur_itrs, np_loss)
+                labels = labels.float()
 
-            if (cur_itrs) % 10 == 0:
-                interval_loss = interval_loss / 10
-                print("Epoch %d, Itrs %d/%d, Loss=%f" %
-                      (cur_epochs, cur_itrs, opts.total_itrs, interval_loss))
-                interval_loss = 0.0
+                loss = criterion(outputs, labels)
+                loss.backward()
+                optimizer.step()
 
-            if (cur_itrs) % opts.val_interval == 0:
-                save_ckpt('checkpoints/latest_%s_%s_os%d.pth' %
-                          (opts.model, opts.dataset, opts.output_stride))
-                print("validation...")
-                model.eval()
-                val_score, ret_samples, current_val_loss = validate(
-                    opts=opts, model=model, loader=val_loader, device=device, metrics=metrics, criterion=criterion,
-                    ret_samples_ids=vis_sample_id)
-                
-                print("Validation Loss: %f" % current_val_loss)
-                print(metrics.to_str(val_score))
-                
-                print("==========================================================")
-                
+                np_loss = loss.detach().cpu().numpy()
+                interval_loss += np_loss
+                if vis is not None:
+                    vis.vis_scalar('Loss', cur_itrs, np_loss)
 
-                #================== Early stop =========================================
-                if current_val_loss < best_val_loss:
-                    best_val_loss = current_val_loss
-                    no_improve_epochs = 0
-                    # Save best model
-                    save_ckpt('checkpoints/best_%s_%s_os%d.pth' % (opts.model, opts.dataset, opts.output_stride))
-                else:
-                    no_improve_epochs += 1
+                if (cur_itrs) % 10 == 0:
+                    interval_loss = interval_loss / 10
+                    print("Epoch %d, Itrs %d/%d, Loss=%f" %
+                          (cur_epochs, cur_itrs, opts.total_itrs, interval_loss))
+                    interval_loss = 0.0
 
-                if no_improve_epochs >= patience:
-                    print("Early stopping triggered after %d validations" % no_improve_epochs)
-                    break
-                #=======================================================================
+                if (cur_itrs) % opts.val_interval == 0:
+                    save_ckpt('checkpoints/latest_%s_%s_os%d.pth' %
+                              (opts.model, opts.dataset, opts.output_stride))
+                    print("validation...")
+                    model.eval()
+                    val_score, ret_samples, current_val_loss = validate(
+                        opts=opts, model=model, loader=val_loader, device=device, metrics=metrics, criterion=criterion,
+                        ret_samples_ids=vis_sample_id)
 
-                if vis is not None:  # visualize validation score and samples
-                    vis.vis_scalar("[Val] Foreground Acc", cur_itrs, val_score['Foreground Acc'])
-                    vis.vis_scalar("[Val] Mean IoU", cur_itrs, val_score['Mean IoU'])
-                    #vis.vis_table("[Val] Class IoU", val_score['Class IoU'])
-                    vis.vis_scalar("[Val] IoU Foreground", cur_itrs, val_score['IoU Foreground'])
+                    print("Validation Loss: %f" % current_val_loss)
+                    print(metrics.to_str(val_score))
 
-                    for k, (img, target, lbl) in enumerate(ret_samples):
-                        img = (denorm(img) * 255).astype(np.uint8)
-                        target = train_dst.decode_target(target).transpose(2, 0, 1).astype(np.uint8)
-                        lbl = train_dst.decode_target(lbl).transpose(2, 0, 1).astype(np.uint8)
-                        concat_img = np.concatenate((img, target, lbl), axis=2)  # concat along width
-                        vis.vis_image('Sample %d' % k, concat_img)
-                model.train()
-            scheduler.step()
+                    print("==========================================================")
 
-            if cur_itrs >= opts.total_itrs:
-                return
+
+                    #================== Early stop =========================================
+                    if current_val_loss < best_val_loss:
+                        best_val_loss = current_val_loss
+                        no_improve_epochs = 0
+                        # Save best model
+                        save_ckpt('checkpoints/best_%s_%s_os%d.pth' % (opts.model, opts.dataset, opts.output_stride))
+                    else:
+                        no_improve_epochs += 1
+
+                    if no_improve_epochs >= patience:
+                        print("Early stopping triggered after %d validations" % no_improve_epochs)
+                        break
+                    #=======================================================================
+
+                    if vis is not None:  # visualize validation score and samples
+                        run.log_metric("Current itrs", cur_itrs)
+                        run.log_metric("[Val] Foreground Acc", val_score['Foreground Acc'])
+                        run.log_metric("[Val] Mean IoU", val_score['Mean IoU'])
+                        #vis.vis_table("[Val] Class IoU", val_score['Class IoU'])
+                        run.log_metric("[Val] IoU Foreground", val_score['IoU Foreground'])
+
+                        for k, (img, target, lbl) in enumerate(ret_samples):
+                            img = (denorm(img) * 255).astype(np.uint8)
+                            target = train_dst.decode_target(target).transpose(2, 0, 1).astype(np.uint8)
+                            lbl = train_dst.decode_target(lbl).transpose(2, 0, 1).astype(np.uint8)
+                            concat_img = np.concatenate((img, target, lbl), axis=2)  # concat along width
+                            vis.vis_image('Sample %d' % k, concat_img)
+                    model.train()
+                scheduler.step()
+
+                if cur_itrs >= opts.total_itrs:
+                    return
 
 
 if __name__ == '__main__':

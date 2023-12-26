@@ -39,6 +39,10 @@ def split_dataset(image_dir, output_dir, train_ratio=0.7, val_ratio=0.2, test_ra
 
     return train_images, val_images, test_images
 
+def lowercase_filenames(path):
+    for file in os.listdir(path):
+        os.rename(path + file, path + file.lower())
+
 # Usage
 if __name__ == "__main__": 
     image_dir = 'local_data/samples/'
