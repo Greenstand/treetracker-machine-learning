@@ -25,12 +25,21 @@ import subprocess
 import sagemaker
 from sagemaker.remote_function import remote
 from sagemaker.experiments.run import Run, load_run
+from sagemaker.session import Session
+import boto3
 
 from split_dataset import split_dataset, lowercase_filenames
 import datetime
+import logging 
+import sys
 
-sm_session = sagemaker.Session()
-s3_root_folder = f"s3://{sm_session.default_bucket()}/"
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+logger.addHandler(logging.StreamHandler(sys.stdout))
+
+boto_session = boto3.session.Session(region_name="us-east-1")
+sagemaker_session = Session(boto_session=boto_session)
+s3 = boto3.client("s3")
 
 # Set path to config file
 os.environ["SAGEMAKER_USER_CONFIG_OVERRIDE"] = os.getcwd()
@@ -58,6 +67,7 @@ def get_argparser():
     parser.add_argument("--separable_conv", action='store_true', default=False,
                         help="apply separable conv to decoder and aspp")
     parser.add_argument("--output_stride", type=int, default=16, choices=[8, 16])
+    parser.add_argument("--s3_model_dir", type=str, default=None)
 
     # Train Options
     parser.add_argument("--test_only", action='store_true', default=False)
@@ -285,6 +295,7 @@ def main_wrapper():
     with Run(
         experiment_name=opts.experiment_name,
         run_name=opts.run_name,
+        sagemaker_session=sm_session
     ) as run:
         run.log_parameter("lr", opts.lr)
         run.log_parameter("batch_size", opts.batch_size)
@@ -295,7 +306,7 @@ def main(opts):
     if opts.dataset.lower() == 'custom':
         #opts.num_classes = 2   # Multi-class with cross-entropy
         opts.num_classes = 1   #Binary segmentation
-
+    
 
     # Setup visualization
     vis = Visualizer(port=opts.vis_port,
@@ -365,7 +376,7 @@ def main(opts):
     elif opts.loss_type == 'BCE':
         criterion = nn.BCEWithLogitsLoss()  ##nn.BCELoss()
 
-    def save_ckpt(path):
+    def save_ckpt(path, bucket_dest=None):
         """ save current model
         """
         torch.save({
@@ -375,6 +386,9 @@ def main(opts):
             "scheduler_state": scheduler.state_dict(),
             "best_score": best_score,
         }, path)
+        if bucket_dest:
+            # sync to specified destination
+            subprocess.run(["aws", "s3", "sync", path, bucket_dest], capture_output=True)
         print("Model saved as %s" % path)
 
     utils.mkdir('checkpoints')
@@ -456,7 +470,7 @@ def main(opts):
 
                 if (cur_itrs) % opts.val_interval == 0:
                     save_ckpt('checkpoints/latest_%s_%s_os%d.pth' %
-                              (opts.model, opts.dataset, opts.output_stride))
+                              (opts.model, opts.dataset, opts.output_stride), opts.s3_model_dir)
                     print("validation...")
                     model.eval()
                     val_score, ret_samples, current_val_loss = validate(
@@ -480,7 +494,7 @@ def main(opts):
                         best_val_loss = current_val_loss
                         no_improve_epochs = 0
                         # Save best model
-                        save_ckpt('checkpoints/best_%s_%s_os%d.pth' % (opts.model, opts.dataset, opts.output_stride))
+                        save_ckpt('checkpoints/best_%s_%s_os%d.pth' % (opts.model, opts.dataset, opts.output_stride), opts.s3_model_dir)
                     else:
                         no_improve_epochs += 1
 
@@ -510,5 +524,6 @@ def main(opts):
 
 
 if __name__ == '__main__':
+    sm_session = Session(boto3.session.Session(region_name="us-east-1"))
     main_wrapper()
     # subprocess.run(["cp",  "-R", "checkpoints/", "/opt/ml/models"])
