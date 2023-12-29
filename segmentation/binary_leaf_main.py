@@ -301,7 +301,7 @@ def main_wrapper():
         run.log_parameter("batch_size", opts.batch_size)
         main(opts)
 
-@remote(include_local_workdir=True)
+# @remote(include_local_workdir=True)
 def main(opts):
     if opts.dataset.lower() == 'custom':
         #opts.num_classes = 2   # Multi-class with cross-entropy
@@ -377,7 +377,8 @@ def main(opts):
         criterion = nn.BCEWithLogitsLoss()  ##nn.BCELoss()
 
     def save_ckpt(path, bucket_dest=None):
-        """ save current model
+        """ 
+        Save current model
         """
         torch.save({
             "cur_itrs": cur_itrs,
@@ -388,7 +389,8 @@ def main(opts):
         }, path)
         if bucket_dest:
             # sync to specified destination
-            subprocess.run(["aws", "s3", "sync", path, bucket_dest], capture_output=True)
+            print ("Syncing model artifacts from" , path , " to :" , bucket_dest)
+            subprocess.run(["aws", "s3", "sync", os.path.dirname(os.path.realpath(path)), bucket_dest], capture_output=True)
         print("Model saved as %s" % path)
 
     utils.mkdir('checkpoints')
