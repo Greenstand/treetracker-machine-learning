@@ -173,36 +173,7 @@ def get_dataset(opts):
         """
         Augmentation to the custom dataset
         """
-        train_img_transform = transforms.Compose([
-          #RandomCropAndPad(512),
-          transforms.Resize((256, 256)),
-          #transforms.RandomResizedCrop(size=(256, 256)),
-          transforms.RandomHorizontalFlip(),
-          #transforms.RandomRotation(degrees=(0, 360)),
-          #transforms.ColorJitter(brightness=0.5, contrast=0.5, saturation=0.5, hue=0.5),
-          transforms.ToTensor(),
-          transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        ])
 
-        train_mask_transform = transforms.Compose([
-            #RandomCropAndPadMask(512),
-            transforms.Resize((256, 256), interpolation=transforms.InterpolationMode.NEAREST),
-            #transforms.RandomResizedCrop(size=(256, 256), interpolation=transforms.InterpolationMode.NEAREST),
-            transforms.RandomHorizontalFlip(),
-            #transforms.RandomRotation(degrees=(0, 360)),
-            transforms.ToTensor(),
-        ])
-
-        val_img_transform = transforms.Compose([
-            transforms.Resize((256, 256)),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        ])
-
-        val_mask_transform = transforms.Compose([
-            transforms.Resize((256, 256), interpolation=transforms.InterpolationMode.NEAREST),
-            transforms.ToTensor(),
-        ])
 
         train_dst = LeafDataset(root=opts.custom_data_path, image_set='train', img_transform=train_img_transform, mask_transform=train_mask_transform)
         val_dst = LeafDataset(root=opts.custom_data_path, image_set='val', img_transform=val_img_transform, mask_transform=val_mask_transform)
