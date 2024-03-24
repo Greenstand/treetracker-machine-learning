@@ -243,6 +243,29 @@ python main.py --model deeplabv3plus_mobilenet --enable_vis --vis_port 28333 --g
 python main.py --model deeplabv3plus_mobilenet --dataset cityscapes --enable_vis --vis_port 28333 --gpu_id 0  --lr 0.1  --crop_size 768 --batch_size 16 --output_stride 16 --data_root ./datasets/data/cityscapes 
 ```
 
+## binary_leaf_main.py
+### 1. get_argparser
+Processes the args. 
+
+### 2. get_dataset
+Retrives dataset and perform augmentations (e.g. resize, crop, horizontal flip, rotation, color jitter). 
+
+### 3. generate
+Generates the binary masks.
+
+### 4. validate
+Performs validation and output scores, samples, and average loss.
+
+### 5. smooth_labels
+Smooths the labels.
+
+### 6. freeze_backbone_layers
+Freezes the initial layers of the model's backbone until a certain index.
+
+### 7. main
+Sets up the training process with the parameters (visualization, device config, random seed, dataloader, model, freeze backbone layers, metrics, optimizer, criterion). Prints out foreground scores. 
+
+
 ## Reference
 
 [1] [Rethinking Atrous Convolution for Semantic Image Segmentation](https://arxiv.org/abs/1706.05587)
